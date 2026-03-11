@@ -1,21 +1,59 @@
 'use client'
 import { useState } from 'react'
 
+const SUPABASE_URL = 'https://zhfmjnaaxzkajiqkycfb.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZm1qbmFheHprYWppcWt5Y2ZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxODA5ODIsImV4cCI6MjA4ODc1Njk4Mn0.A9PFcxtQgYrHJn8405NhjG9gIhYcJD-vNQIfcztRRC8'
+
+async function addToWaitlist(email: string) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/waitlist`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify({ email }),
+  })
+  return res
+}
+
 export default function Waitlist() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!email || !email.includes('@')) {
-      setError(true)
-      setTimeout(() => setError(false), 1000)
+      setError('invalid')
+      setTimeout(() => setError(''), 1000)
       return
     }
-    setSubmitted(true)
-    setEmail('')
-    // TODO: send to Supabase
+    setLoading(true)
+    try {
+      const res = await addToWaitlist(email)
+      if (res.status === 201) {
+        setSubmitted(true)
+        setEmail('')
+      } else if (res.status === 409) {
+        setError('duplicate')
+        setTimeout(() => setError(''), 2000)
+      } else {
+        setError('server')
+        setTimeout(() => setError(''), 2000)
+      }
+    } catch {
+      setError('server')
+      setTimeout(() => setError(''), 2000)
+    }
+    setLoading(false)
   }
+
+  const errorMsg =
+    error === 'invalid' ? 'Enter a valid email.' :
+    error === 'duplicate' ? 'This email is already on the list!' :
+    error === 'server' ? 'Something went wrong. Try again.' : ''
 
   return (
     <section id="waitlist" style={{
@@ -35,7 +73,6 @@ export default function Waitlist() {
         overflow: 'hidden',
         boxShadow: '0 0 80px rgba(126,184,255,0.04), 0 0 120px rgba(168,85,247,0.04)',
       }}>
-        {/* Glow top */}
         <div style={{
           position: 'absolute',
           top: -60, left: '50%',
@@ -59,45 +96,67 @@ export default function Waitlist() {
           Join the waitlist and get free Pro access for the first 3 months. Limited to 500 spots.
         </p>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            placeholder="your@email.com"
-            style={{
-              flex: 1,
-              background: '#07080f',
-              border: `1px solid ${error ? '#FF5C5C' : 'rgba(140,120,255,0.15)'}`,
-              borderRadius: '8px',
-              padding: '12px 16px',
-              color: '#e8edf5',
-              fontFamily: 'DM Mono, monospace',
-              fontSize: '13px',
-              outline: 'none',
-              transition: 'border-color 0.2s',
-            }}
-            onFocus={e => (e.target.style.borderColor = 'rgba(126,184,255,0.4)')}
-            onBlur={e => (e.target.style.borderColor = 'rgba(140,120,255,0.15)')}
-          />
-          <button onClick={handleSubmit} className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
-            Join →
-          </button>
-        </div>
-
-        {submitted && (
-          <div style={{ color: '#7EB8FF', fontSize: '13px', marginTop: '12px' }}>
-            ✓ You&apos;re on the list! We&apos;ll reach out soon.
+        {!submitted ? (
+          <>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                placeholder="your@email.com"
+                disabled={loading}
+                style={{
+                  flex: 1,
+                  background: '#07080f',
+                  border: `1px solid ${error === 'invalid' ? '#FF5C5C' : 'rgba(140,120,255,0.15)'}`,
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  color: '#e8edf5',
+                  fontFamily: 'DM Mono, monospace',
+                  fontSize: '13px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  opacity: loading ? 0.6 : 1,
+                }}
+                onFocus={e => (e.target.style.borderColor = 'rgba(126,184,255,0.4)')}
+                onBlur={e => (e.target.style.borderColor = 'rgba(140,120,255,0.15)')}
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="btn-primary"
+                style={{ whiteSpace: 'nowrap', opacity: loading ? 0.7 : 1 }}
+              >
+                {loading ? '...' : 'Join →'}
+              </button>
+            </div>
+            {errorMsg && (
+              <div style={{ color: '#FF5C5C', fontSize: '13px', marginTop: '10px' }}>
+                {errorMsg}
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{
+            background: 'rgba(126,184,255,0.06)',
+            border: '1px solid rgba(126,184,255,0.2)',
+            borderRadius: '10px',
+            padding: '20px',
+            color: '#7EB8FF',
+            fontSize: '14px',
+            lineHeight: 1.6,
+          }}>
+            ✓ You&apos;re on the list!<br/>
+            <span style={{ color: '#6b7a99', fontSize: '13px' }}>We&apos;ll reach out when early access opens.</span>
           </div>
         )}
 
         <div style={{ marginTop: '20px', fontSize: '12px', color: '#6b7a99' }}>
-          Already <span style={{ color: '#7EB8FF' }}>247 people</span> on the waitlist
+          Limited to <span style={{ color: '#7EB8FF' }}>500 spots</span>
         </div>
       </div>
 
-      {/* Telegram CTA */}
       <div style={{
         marginTop: '24px',
         background: 'linear-gradient(135deg, rgba(126,184,255,0.06), rgba(168,85,247,0.06))',
@@ -115,7 +174,7 @@ export default function Waitlist() {
             Try the bot right now
           </h3>
           <p style={{ fontSize: '13px', color: '#6b7a99', marginBottom: '14px', lineHeight: 1.6 }}>
-            Our Telegram bot is live. Send any token contract address and get instant analytics — no signup needed.
+            Our Telegram bot is live. Send any token address and get instant analytics — no signup needed.
           </p>
           <a href="https://t.me/lunascope_bot" className="btn-primary" style={{ fontSize: '13px', padding: '10px 20px' }}>
             Open in Telegram →
