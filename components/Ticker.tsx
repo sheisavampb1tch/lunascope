@@ -25,8 +25,9 @@ interface Token {
 }
 
 function formatPrice(price: number): string {
-  if (price < 0.00001) return `$${price.toExponential(2)}`
-  if (price < 0.001) return `$${price.toFixed(8)}`
+  if (price < 0.000001) return `$${price.toFixed(10)}`
+  if (price < 0.00001) return `$${price.toFixed(8)}`
+  if (price < 0.001) return `$${price.toFixed(6)}`
   if (price < 1) return `$${price.toFixed(5)}`
   return `$${price.toFixed(3)}`
 }
