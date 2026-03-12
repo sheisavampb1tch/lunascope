@@ -176,7 +176,7 @@ export default function Waitlist() {
           <p style={{ fontSize: '13px', color: '#6b7a99', marginBottom: '14px', lineHeight: 1.6 }}>
             Our Telegram bot is live. Send any token address and get instant analytics — no signup needed.
           </p>
-          <a href="https://t.me/lunascope_bot" className="btn-primary" style={{ fontSize: '13px', padding: '10px 20px' }}>
+          <a href="https://t.me/LunascopeappBot" className="btn-primary" style={{ fontSize: '13px', padding: '10px 20px' }}>
             Open in Telegram →
           </a>
         </div>
