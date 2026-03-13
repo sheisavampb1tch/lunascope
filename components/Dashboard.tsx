@@ -1,158 +1,265 @@
 'use client'
-const tokens = [
-  { icon: '🐸', name: 'PEPE', mc: '$7.8B', price: '$0.00001842', change: '+12.4%', up: true },
-  { icon: '🐕', name: 'WIF', mc: '$2.8B', price: '$2.841', change: '-4.2%', up: false },
-  { icon: '🔥', name: 'FLOKI', mc: '$1.9B', price: '$0.0001923', change: '+22.7%', up: true },
+import { useEffect, useState } from 'react'
+import Navbar from '@/components/Navbar'
+import Ticker from '@/components/Ticker'
+
+interface Token {
+  id: string
+  symbol: string
+  name: string
+  image: string
+  current_price: number
+  price_change_percentage_24h: number
+  market_cap: number
+  total_volume: number
+  market_cap_rank: number
+}
+
+function formatPrice(price: number): string {
+  if (price < 0.000001) return `$${price.toFixed(10)}`
+  if (price < 0.00001) return `$${price.toFixed(8)}`
+  if (price < 0.001) return `$${price.toFixed(6)}`
+  if (price < 1) return `$${price.toFixed(5)}`
+  if (price < 1000) return `$${price.toFixed(3)}`
+  return `$${price.toLocaleString()}`
+}
+
+function formatMarketCap(mc: number): string {
+  if (mc >= 1_000_000_000) return `$${(mc / 1_000_000_000).toFixed(1)}B`
+  if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(1)}M`
+  return `$${mc.toLocaleString()}`
+}
+
+const MEME_COIN_IDS = [
+  'pepe', 'dogecoin', 'shiba-inu', 'floki', 'dogwifcoin',
+  'bonk', 'brett', 'mog-coin', 'popcat', 'gigachad-memecoin',
+  'cat-in-a-dogs-world', 'book-of-meme', 'baby-doge-coin', 'coq-inu', 'turbo'
 ]
 
-const bars1 = [30, 45, 35, 60, 40, 75, 55, 90, 70, 100]
-const bars2 = [50, 40, 65, 45, 80, 60, 70, 55, 85, 100]
+export default function AppPage() {
+  const [tokens, setTokens] = useState<Token[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | 'gainers' | 'losers'>('all')
+  const [search, setSearch] = useState('')
+  const [lastUpdated, setLastUpdated] = useState<string>('')
 
-export default function Dashboard() {
+  const fetchTokens = async () => {
+    try {
+      const ids = MEME_COIN_IDS.join(',')
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`,
+        { cache: 'no-store' }
+      )
+      const data = await res.json()
+      setTokens(data)
+      setLastUpdated(new Date().toLocaleTimeString())
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTokens()
+    const interval = setInterval(fetchTokens, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const filtered = tokens
+    .filter(t => {
+      if (filter === 'gainers') return t.price_change_percentage_24h > 0
+      if (filter === 'losers') return t.price_change_percentage_24h < 0
+      return true
+    })
+    .filter(t =>
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      t.symbol.toLowerCase().includes(search.toLowerCase())
+    )
+
+  const totalVolume = tokens.reduce((acc, t) => acc + t.total_volume, 0)
+  const gainers = tokens.filter(t => t.price_change_percentage_24h > 0).length
+  const topGainer = [...tokens].sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h)[0]
+
   return (
-    <section id="demo" style={{
-      position: 'relative',
-      zIndex: 1,
-      padding: '80px 24px',
-      maxWidth: '1100px',
-      margin: '0 auto',
-    }}>
-      <div className="section-label">// live demo</div>
-      <div className="section-title">Your edge,<br />visualized.</div>
+    <main style={{ minHeight: '100vh', background: '#07080f', color: '#e8edf5' }}>
+      <Navbar />
+      <Ticker />
 
-      {/* Frame */}
-      <div style={{
-        background: '#0f1121',
-        border: '1px solid rgba(140,120,255,0.12)',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        boxShadow: '0 40px 80px rgba(0,0,0,0.5), 0 0 60px rgba(126,184,255,0.04), 0 0 120px rgba(168,85,247,0.04)',
-      }}>
-        {/* Browser bar */}
-        <div style={{
-          background: '#0b0d1a',
-          borderBottom: '1px solid rgba(140,120,255,0.1)',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}>
-          {['#FF5C5C', '#F7C948', '#4ade80'].map((c, i) => (
-            <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: c, opacity: 0.8 }} />
-          ))}
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 24px' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '28px' }}>
+              Meme Token Dashboard
+            </div>
+            <div style={{ fontSize: '13px', color: '#6b7a99', marginTop: '4px' }}>
+              Live data · Updates every 60s {lastUpdated && `· Last updated ${lastUpdated}`}
+            </div>
+          </div>
           <div style={{
-            marginLeft: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
             fontSize: '11px',
-            color: '#6b7a99',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(140,120,255,0.1)',
-            padding: '4px 12px',
-            borderRadius: '4px',
+            color: '#4ade80',
+            background: 'rgba(74,222,128,0.08)',
+            border: '1px solid rgba(74,222,128,0.2)',
+            borderRadius: '6px',
+            padding: '6px 12px',
           }}>
-            lunascope.xyz/dashboard
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 6px #4ade80' }} />
+            LIVE
           </div>
         </div>
 
-        {/* Dashboard content */}
-        <div style={{ padding: '20px', background: '#07080f' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '16px' }}>Meme Token Dashboard</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {['1H', '24H', '7D'].map((t, i) => (
-                <span key={t} style={{
-                  fontSize: '11px',
-                  padding: '4px 10px',
-                  borderRadius: '4px',
+        {/* Stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
+          {[
+            { label: 'Total Volume 24H', value: loading ? '...' : formatMarketCap(totalVolume), color: '#7EB8FF', sub: `${tokens.length} tokens tracked` },
+            { label: 'Gainers Today', value: loading ? '...' : `${gainers} / ${tokens.length}`, color: '#4ade80', sub: 'Positive 24h change' },
+            { label: 'Top Gainer', value: loading ? '...' : topGainer ? `${topGainer.symbol.toUpperCase()} +${topGainer.price_change_percentage_24h.toFixed(1)}%` : '-', color: '#A855F7', sub: 'Best performer 24h' },
+          ].map((s, i) => (
+            <div key={i} style={{
+              background: '#0f1121',
+              border: '1px solid rgba(140,120,255,0.1)',
+              borderRadius: '12px',
+              padding: '20px',
+            }}>
+              <div style={{ fontSize: '10px', letterSpacing: '0.12em', color: '#6b7a99', textTransform: 'uppercase', marginBottom: '8px' }}>{s.label}</div>
+              <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: '11px', color: '#6b7a99', marginTop: '4px' }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters + Search */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search token..."
+            style={{
+              background: '#0f1121',
+              border: '1px solid rgba(140,120,255,0.15)',
+              borderRadius: '8px',
+              padding: '8px 16px',
+              color: '#e8edf5',
+              fontSize: '13px',
+              outline: 'none',
+              width: '200px',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {(['all', 'gainers', 'losers'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
                   cursor: 'pointer',
-                  color: i === 1 ? '#7EB8FF' : '#6b7a99',
-                  background: i === 1 ? 'rgba(126,184,255,0.08)' : 'rgba(255,255,255,0.04)',
-                  border: i === 1 ? '1px solid rgba(126,184,255,0.2)' : '1px solid rgba(140,120,255,0.1)',
-                }}>
-                  {t}
-                </span>
-              ))}
-            </div>
+                  border: filter === f ? '1px solid rgba(126,184,255,0.4)' : '1px solid rgba(140,120,255,0.1)',
+                  background: filter === f ? 'rgba(126,184,255,0.08)' : '#0f1121',
+                  color: filter === f ? '#7EB8FF' : '#6b7a99',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Token Table */}
+        <div style={{
+          background: '#0f1121',
+          border: '1px solid rgba(140,120,255,0.1)',
+          borderRadius: '12px',
+          overflow: 'hidden',
+        }}>
+          {/* Table header */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '40px 2fr 1fr 1fr 1fr',
+            padding: '12px 20px',
+            fontSize: '10px',
+            letterSpacing: '0.1em',
+            color: '#6b7a99',
+            textTransform: 'uppercase',
+            borderBottom: '1px solid rgba(140,120,255,0.08)',
+          }}>
+            <div>#</div>
+            <div>Token</div>
+            <div style={{ textAlign: 'right' }}>Price</div>
+            <div style={{ textAlign: 'right' }}>24h %</div>
+            <div style={{ textAlign: 'right' }}>Market Cap</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1px', background: 'rgba(140,120,255,0.08)' }}>
-            {/* Volume card */}
-            <div style={{ background: '#0f1121', padding: '20px' }}>
-              <div style={{ fontSize: '10px', letterSpacing: '0.12em', color: '#6b7a99', textTransform: 'uppercase', marginBottom: '12px' }}>Total Volume 24H</div>
-              <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '28px', fontWeight: 700, color: '#7EB8FF', textShadow: '0 0 20px rgba(126,184,255,0.3)' }}>$847.2M</div>
-              <div style={{ fontSize: '12px', color: '#4ade80', marginTop: '4px' }}>↑ +18.4% vs yesterday</div>
-              <div style={{ marginTop: '16px', height: '50px', display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
-                {bars1.map((h, i) => (
-                  <div key={i} style={{
-                    flex: 1,
-                    height: `${h}%`,
-                    borderRadius: '2px 2px 0 0',
-                    background: i > 6 ? 'linear-gradient(to top, #7EB8FF, #A855F7)' : '#7EB8FF',
-                    opacity: 0.7,
-                  }} />
+          {/* Rows */}
+          {loading ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} style={{
+                display: 'grid',
+                gridTemplateColumns: '40px 2fr 1fr 1fr 1fr',
+                padding: '14px 20px',
+                borderBottom: '1px solid rgba(140,120,255,0.05)',
+                opacity: 0.3,
+              }}>
+                {Array.from({ length: 5 }).map((_, j) => (
+                  <div key={j} style={{ height: 16, background: '#1a1d2e', borderRadius: 4, margin: '0 4px' }} />
                 ))}
               </div>
-            </div>
-
-            {/* New tokens card */}
-            <div style={{ background: '#0f1121', padding: '20px' }}>
-              <div style={{ fontSize: '10px', letterSpacing: '0.12em', color: '#6b7a99', textTransform: 'uppercase', marginBottom: '12px' }}>New Tokens (24H)</div>
-              <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '28px', fontWeight: 700, color: '#A855F7', textShadow: '0 0 20px rgba(168,85,247,0.3)' }}>1,284</div>
-              <div style={{ fontSize: '12px', color: '#4ade80', marginTop: '4px' }}>↑ +6.2% vs yesterday</div>
-              <div style={{ marginTop: '16px', height: '50px', display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
-                {bars2.map((h, i) => (
-                  <div key={i} style={{
-                    flex: 1,
-                    height: `${h}%`,
-                    borderRadius: '2px 2px 0 0',
-                    background: '#A855F7',
-                    opacity: 0.7,
-                  }} />
-                ))}
+            ))
+          ) : filtered.map((t, i) => (
+            <div
+              key={t.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '40px 2fr 1fr 1fr 1fr',
+                padding: '14px 20px',
+                borderBottom: '1px solid rgba(140,120,255,0.05)',
+                transition: 'background 0.15s',
+                cursor: 'default',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(126,184,255,0.02)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <div style={{ fontSize: '12px', color: '#6b7a99', display: 'flex', alignItems: 'center' }}>{i + 1}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <img src={t.image} alt={t.name} style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>{t.name}</div>
+                  <div style={{ fontSize: '11px', color: '#6b7a99' }}>{t.symbol.toUpperCase()}</div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontFamily: 'DM Mono, monospace', fontSize: '13px' }}>
+                {formatPrice(t.current_price)}
+              </div>
+              <div style={{
+                textAlign: 'right',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                fontSize: '13px',
+                color: t.price_change_percentage_24h >= 0 ? '#4ade80' : '#FF5C5C',
+                fontFamily: 'DM Mono, monospace',
+              }}>
+                {t.price_change_percentage_24h >= 0 ? '+' : ''}{t.price_change_percentage_24h?.toFixed(2)}%
+              </div>
+              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontSize: '13px', color: '#6b7a99', fontFamily: 'DM Mono, monospace' }}>
+                {formatMarketCap(t.market_cap)}
               </div>
             </div>
+          ))}
+        </div>
 
-            {/* Rug risk */}
-            <div style={{ background: '#0f1121', padding: '20px' }}>
-              <div style={{ fontSize: '10px', letterSpacing: '0.12em', color: '#6b7a99', textTransform: 'uppercase', marginBottom: '12px' }}>Avg Rug Risk Score</div>
-              <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '28px', fontWeight: 700, color: '#C084FC', textShadow: '0 0 20px rgba(192,132,252,0.3)' }}>3.2 / 10</div>
-              <div style={{ fontSize: '12px', color: '#C084FC', marginTop: '4px' }}>● Low Risk Today</div>
-            </div>
-
-            {/* Token list */}
-            <div style={{ background: '#0f1121', padding: '20px', gridColumn: 'span 3' }}>
-              <div style={{ fontSize: '10px', letterSpacing: '0.12em', color: '#6b7a99', textTransform: 'uppercase', marginBottom: '12px' }}>🔥 Trending Now</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {tokens.map((t) => (
-                  <div key={t.name} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 12px',
-                    background: 'rgba(126,184,255,0.02)',
-                    border: '1px solid rgba(140,120,255,0.1)',
-                    borderRadius: '8px',
-                    transition: 'border-color 0.2s',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(126,184,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>
-                        {t.icon}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 500 }}>{t.name}</div>
-                        <div style={{ fontSize: '11px', color: '#6b7a99' }}>MC: {t.mc}</div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '13px', fontWeight: 600 }}>{t.price}</div>
-                      <div style={{ fontSize: '11px', marginTop: '2px', color: t.up ? '#4ade80' : '#FF5C5C' }}>{t.change}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '11px', color: '#6b7a99' }}>
+          Data powered by CoinGecko · <a href="/" style={{ color: '#7EB8FF', textDecoration: 'none' }}>← Back to lunascope.xyz</a>
         </div>
       </div>
-    </section>
+    </main>
   )
 }
