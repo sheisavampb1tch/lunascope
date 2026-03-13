@@ -1,5 +1,4 @@
 'use client'
-
 export default function Navbar() {
   return (
     <nav style={{
@@ -10,7 +9,7 @@ export default function Navbar() {
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: '18px 48px',
-      borderBottom: '1px solid rgba(140,120,255,0.1)',
+      borderBottom: '1px solid rgba(140,120,255,0.08)',
       background: 'rgba(7,8,15,0.85)',
       backdropFilter: 'blur(16px)',
     }}>
@@ -30,13 +29,12 @@ export default function Navbar() {
           background: '#7EB8FF',
           boxShadow: '0 0 12px #7EB8FF',
           display: 'inline-block',
-          animation: 'pulse 2s ease-in-out infinite',
         }} />
         lunascope
       </div>
 
       <ul style={{ display: 'flex', gap: '32px', listStyle: 'none', alignItems: 'center' }}>
-        {[['Features', '#features'], ['Dashboard', '#demo'], ['Pricing', '#waitlist']].map(([label, href]) => (
+        {[['Analytics', '#demo'], ['Features', '#features']].map(([label, href]) => (
           <li key={label}>
             <a href={href} style={{
               color: '#6b7a99',
@@ -52,19 +50,20 @@ export default function Navbar() {
           </li>
         ))}
         <li>
-          <a href="#waitlist" style={{
+          <a href="/dashboard" style={{
             background: 'linear-gradient(135deg, #7EB8FF, #A855F7)',
             color: '#fff',
-            padding: '8px 18px',
-            borderRadius: '6px',
+            padding: '8px 20px',
+            borderRadius: '8px',
             fontSize: '13px',
-            fontWeight: 500,
+            fontWeight: 600,
             textDecoration: 'none',
             transition: 'opacity 0.2s',
+            letterSpacing: '0.02em',
           }}
             onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
             onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
-            Join Waitlist
+            Launch App →
           </a>
         </li>
       </ul>
