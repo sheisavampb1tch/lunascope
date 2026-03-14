@@ -107,8 +107,8 @@ export default function TokenPage({ params }: { params: { id: string } }) {
       .finally(() => setLoading(false))
   }, [params.id])
 
-  const price = info?.market_data.current_price.usd ?? 0
-  const change24h = info?.market_data.price_change_percentage_24h ?? 0
+  const price = info?.market_data?.current_price?.usd ?? 0
+const change24h = info?.market_data?.price_change_percentage_24h ?? 0
   const isUp = change24h >= 0
 
   return (
