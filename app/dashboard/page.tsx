@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+
 import React from 'react'
 
 interface Token {
@@ -503,7 +504,7 @@ export default function Dashboard() {
                 : filtered.map((t, i) => {
                   const isUp = t.price_change_percentage_24h >= 0
                   return (
-                    <div key={t.id} className="t-row">
+                    <div key={t.id} className="t-row" style={{ cursor: 'pointer' }} onClick={() => window.location.href = `/dashboard/token/${t.id}`}>
                       <div className="t-rank">{i + 1}</div>
                       <div className="t-info">
                         <img src={t.image} alt={t.name} className="t-img" />
