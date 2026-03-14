@@ -1,6 +1,36 @@
 'use client'
 import React, { useEffect, useState, useRef } from 'react'
 
+const BLOB_POSITIONS = [
+  {x:5,y:12},{x:88,y:8},{x:3,y:55},{x:92,y:48},{x:18,y:82},
+  {x:78,y:78},{x:45,y:5},{x:55,y:88},{x:30,y:35},{x:70,y:30},
+  {x:12,y:68},{x:85,y:65},
+]
+const BLOB_COLORS = ['#1a3a5c','#2d1b4e','#0f2744','#1e1060','#0a2a4a','#251550','#0d3060','#1a0a3a','#0f1f40','#180d40','#0a1a35','#1c0e4a']
+
+function Blobs() {
+  return (
+    <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
+      <style>{`
+        @keyframes fl0{0%,100%{transform:translateY(0) translateX(0)}40%{transform:translateY(-18px) translateX(8px)}70%{transform:translateY(10px) translateX(-6px)}}
+        @keyframes fl1{0%,100%{transform:translateY(0) translateX(0)}35%{transform:translateY(14px) translateX(-10px)}65%{transform:translateY(-8px) translateX(12px)}}
+        @keyframes fl2{0%,100%{transform:translateY(0) translateX(0)}50%{transform:translateY(-20px) translateX(5px)}}
+      `}</style>
+      {BLOB_POSITIONS.map((p, i) => (
+        <div key={i} style={{
+          position:'absolute', left:`${p.x}%`, top:`${p.y}%`,
+          width: 44 + (i%4)*12, height: 44 + (i%4)*12,
+          borderRadius:'50%', opacity:0.15,
+          filter:'blur(8px)',
+          background: BLOB_COLORS[i % BLOB_COLORS.length],
+          animation:`fl${i%3} ${7+(i%4)*1.5}s ease-in-out infinite`,
+          animationDelay:`${i*0.4}s`,
+        }} />
+      ))}
+    </div>
+  )
+}
+
 interface TokenInfo {
   id: string
   symbol: string
@@ -120,14 +150,15 @@ export default function TokenPage({ params }: { params: Promise<{ id: string }> 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { background: #0e0e14; }
+        html, body { background: #111114; }
 
         .page {
           min-height: 100vh;
-          background: #0e0e14;
+          background: #111114;
           color: #e2e8f0;
           font-family: 'Syne', sans-serif;
           padding: 0;
+          position: relative;
         }
 
         /* TOPBAR */
@@ -136,7 +167,8 @@ export default function TokenPage({ params }: { params: Promise<{ id: string }> 
           border-bottom: 1px solid rgba(255,255,255,0.05);
           display: flex; align-items: center; justify-content: space-between;
           padding: 0 28px;
-          background: #0e0e14;
+          background: rgba(17,17,20,0.9);
+          backdrop-filter: blur(20px);
           position: sticky; top: 0; z-index: 40;
         }
         .topbar-left { display: flex; align-items: center; gap: 12px; }
@@ -167,7 +199,7 @@ export default function TokenPage({ params }: { params: Promise<{ id: string }> 
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
         /* CONTENT */
-        .content { max-width: 1000px; margin: 0 auto; padding: 28px 24px; }
+        .content { max-width: 1000px; margin: 0 auto; padding: 28px 24px; position: relative; z-index: 1; }
 
         /* TOKEN HEADER */
         .token-header {
@@ -274,10 +306,11 @@ export default function TokenPage({ params }: { params: Promise<{ id: string }> 
       `}</style>
 
       <div className="page">
+        <Blobs />
         {/* TOPBAR */}
         <div className="topbar">
           <div className="topbar-left">
-            <a href="/" className="back-btn">
+            <a href="/dashboard" className="back-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
               Back
             </a>
