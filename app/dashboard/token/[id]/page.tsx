@@ -90,25 +90,29 @@ function MiniChart({ prices, isUp }: { prices: [number, number][]; isUp: boolean
   return <canvas ref={canvasRef} width={600} height={160} style={{ width: '100%', height: '160px' }} />
 }
 
-export default function TokenPage({ params }: { params: { id: string } }) {
+export default function TokenPage({ params }: { params: Promise<{ id: string }> }) {
   const [info, setInfo] = useState<TokenInfo | null>(null)
   const [chart, setChart] = useState<ChartData | null>(null)
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState<'7' | '30' | '90'>('7')
+  const [tokenId, setTokenId] = useState<string>('')
 
   useEffect(() => {
-    fetch(`/api/token/${params.id}`)
-      .then(r => r.json())
-      .then(d => {
-        setInfo(d.info)
-        setChart(d.chart)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [params.id])
+    Promise.resolve(params).then(({ id }) => {
+      setTokenId(id)
+      fetch(`/api/token/${id}`)
+        .then(r => r.json())
+        .then(d => {
+          setInfo(d.info)
+          setChart(d.chart)
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false))
+    })
+  }, [])
 
-  const price = info?.market_data?.current_price?.usd ?? 0
-const change24h = info?.market_data?.price_change_percentage_24h ?? 0
+  const price = info?.market_data.current_price.usd ?? 0
+  const change24h = info?.market_data.price_change_percentage_24h ?? 0
   const isUp = change24h >= 0
 
   return (
@@ -278,7 +282,7 @@ const change24h = info?.market_data?.price_change_percentage_24h ?? 0
               Back
             </a>
             <span className="breadcrumb">
-              Dashboard / <span>{info?.name ?? params.id}</span>
+              Dashboard / <span>{info?.name ?? tokenId}</span>
             </span>
           </div>
           <div className="live-pill">
