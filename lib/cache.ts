@@ -13,16 +13,3 @@ export function createCachedJsonFetcher<T extends JsonValue>(
     tags,
   });
 }
-
-export const getPolymarketSnapshot = createCachedJsonFetcher(
-  ["lunascope-polymarket-snapshot"],
-  async () => {
-    return {
-      status: "placeholder",
-      message: "Replace with Polymarket + AI aggregator fetcher before production launch.",
-      cachedAt: new Date().toISOString(),
-    };
-  },
-  20,
-  ["markets", "signals"],
-);
