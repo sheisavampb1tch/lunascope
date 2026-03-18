@@ -18,7 +18,7 @@ const opportunities = [
     market: "42%",
     model: "51%",
     edge: "+9 pts",
-    confidence: 0.82,
+    confidence: 82,
     liquidity: "$2.1M",
   },
   {
@@ -27,7 +27,7 @@ const opportunities = [
     market: "58%",
     model: "64%",
     edge: "+6 pts",
-    confidence: 0.74,
+    confidence: 74,
     liquidity: "$1.4M",
   },
   {
@@ -36,7 +36,7 @@ const opportunities = [
     market: "47%",
     model: "54%",
     edge: "+7 pts",
-    confidence: 0.79,
+    confidence: 79,
     liquidity: "$3.6M",
   },
 ];
@@ -54,16 +54,17 @@ const strategies = [
 ];
 
 function toneClass(tone: string) {
-  if (tone === "cyan") return "from-cyan-400/18 to-cyan-400/5 text-cyan-100";
-  if (tone === "indigo") return "from-indigo-400/18 to-indigo-400/5 text-indigo-100";
-  if (tone === "emerald") return "from-emerald-400/18 to-emerald-400/5 text-emerald-100";
-  return "from-white/10 to-white/[0.03] text-slate-100";
+  if (tone === "cyan") return "from-cyan-400/18 to-cyan-400/5";
+  if (tone === "indigo") return "from-indigo-400/18 to-indigo-400/5";
+  if (tone === "emerald") return "from-emerald-400/18 to-emerald-400/5";
+  return "from-white/10 to-white/[0.03]";
 }
 
 export function DashboardPage() {
   return (
     <main className="cosmic-shell min-h-screen overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[320px] bg-[radial-gradient(circle_at_top,rgba(0,229,255,0.12),transparent_45%)]" />
+      <div className="absolute inset-x-0 top-0 h-[360px] bg-[radial-gradient(circle_at_top,rgba(0,229,255,0.14),transparent_45%)]" />
+      <div className="absolute right-[8%] top-[120px] h-[240px] w-[240px] rounded-full bg-indigo-500/12 blur-[140px]" />
 
       <div className="mx-auto max-w-7xl px-6 py-6 md:px-8">
         <ScaleIn>
@@ -71,7 +72,7 @@ export function DashboardPage() {
             <div className="flex items-center gap-4">
               <Link href="/" className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/24 bg-cyan-400/8">
-                  <div className="h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(0,229,255,0.85)]" />
+                  <div className="live-pulse h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(0,229,255,0.85)]" />
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Lunascope</p>
@@ -84,9 +85,7 @@ export function DashboardPage() {
                   <button
                     key={item}
                     className={`rounded-full px-4 py-2 text-sm transition-all duration-300 ${
-                      index === 0
-                        ? "bg-cyan-400 text-slate-950"
-                        : "text-slate-400 hover:text-white"
+                      index === 0 ? "bg-cyan-400 text-slate-950" : "text-slate-400 hover:text-white"
                     }`}
                   >
                     {item}
@@ -96,10 +95,14 @@ export function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="rounded-full border border-emerald-400/18 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">
+              <motion.div
+                animate={{ boxShadow: ["0 0 0 rgba(61,217,164,0.14)", "0 0 20px rgba(61,217,164,0.16)", "0 0 0 rgba(61,217,164,0.14)"] }}
+                transition={{ repeat: Number.POSITIVE_INFINITY, duration: 2.8 }}
+                className="rounded-full border border-emerald-400/18 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200"
+              >
                 Wallet connected • 0x7A...19C2
-              </div>
-              <button className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition-colors duration-300 hover:border-cyan-300/24">
+              </motion.div>
+              <button className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-300/24 hover:bg-white/[0.03]">
                 Export briefing
               </button>
             </div>
@@ -114,13 +117,13 @@ export function DashboardPage() {
                 Calm signal flow for fast-moving prediction markets.
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 md:text-lg">
-                Prioritized opportunities, copyable strategies, and contract-level confidence shifts are arranged into one premium command surface so decisions feel immediate instead of chaotic.
+                Prioritized opportunities, copyable strategies, and confidence shifts are arranged into one uninterrupted premium surface designed to feel controlled under pressure.
               </p>
             </div>
           </FadeIn>
 
           <FadeIn delay={0.12}>
-            <div className="glass-panel rounded-[32px] p-6">
+            <motion.div whileHover={{ y: -4 }} className="glass-panel premium-card rounded-[32px] p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-400">Session focus</p>
@@ -136,16 +139,20 @@ export function DashboardPage() {
                   ["Recession timing", "66% conviction", "Catalyst in 48h"],
                   ["ETH ETF flows", "61% conviction", "Spread stabilizing"],
                 ].map(([title, conviction, detail]) => (
-                  <div key={title} className="rounded-2xl border border-white/6 bg-slate-950/45 px-4 py-3">
+                  <motion.div
+                    key={title}
+                    whileHover={{ y: -2 }}
+                    className="premium-card rounded-2xl border border-white/6 bg-slate-950/45 px-4 py-3"
+                  >
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-white">{title}</p>
                       <p className="text-xs text-cyan-200">{conviction}</p>
                     </div>
                     <p className="mt-2 text-xs text-slate-500">{detail}</p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           </FadeIn>
         </section>
 
@@ -153,10 +160,11 @@ export function DashboardPage() {
           {summaryCards.map((card, index) => (
             <motion.div
               key={card.label}
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.08 * index, ease: [0.22, 1, 0.36, 1] }}
-              className={`glass-panel rounded-[28px] bg-gradient-to-b p-6 ${toneClass(card.tone)}`}
+              whileHover={{ y: -4, scale: 1.01 }}
+              transition={{ duration: 0.55, delay: 0.06 * index, ease: [0.22, 1, 0.36, 1] }}
+              className={`glass-panel premium-card rounded-[28px] bg-gradient-to-b p-6 ${toneClass(card.tone)}`}
             >
               <p className="text-sm text-slate-400">{card.label}</p>
               <p className="mt-5 text-4xl font-semibold tracking-[-0.05em] text-white">{card.value}</p>
@@ -196,20 +204,29 @@ export function DashboardPage() {
                 <p>Depth</p>
               </div>
               <div className="divide-y divide-white/6">
-                {opportunities.map((row) => (
-                  <div
+                {opportunities.map((row, index) => (
+                  <motion.div
                     key={row.name}
-                    className="grid grid-cols-[1.6fr_0.55fr_0.55fr_0.5fr_0.7fr_0.55fr] gap-4 px-5 py-5 transition-colors duration-300 hover:bg-white/[0.03]"
+                    initial={{ opacity: 0, y: 18 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.35 }}
+                    transition={{ duration: 0.45, delay: index * 0.08 }}
+                    whileHover={{ backgroundColor: "rgba(255,255,255,0.04)" }}
+                    className="grid grid-cols-[1.6fr_0.55fr_0.55fr_0.5fr_0.7fr_0.55fr] gap-4 px-5 py-5"
                   >
                     <div>
                       <p className="text-sm text-white">{row.name}</p>
                       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/6">
                         <motion.div
                           initial={{ width: 0 }}
-                          whileInView={{ width: `${row.confidence * 100}%` }}
+                          whileInView={{ width: `${row.confidence}%` }}
                           viewport={{ once: true, amount: 0.6 }}
-                          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-                          className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-indigo-400"
+                          animate={{ opacity: [0.82, 1, 0.82] }}
+                          transition={{
+                            width: { duration: 1, ease: [0.22, 1, 0.36, 1] },
+                            opacity: { repeat: Number.POSITIVE_INFINITY, duration: 2.6 },
+                          }}
+                          className="confidence-bar h-full rounded-full bg-gradient-to-r from-cyan-300 to-indigo-400"
                         />
                       </div>
                     </div>
@@ -218,7 +235,7 @@ export function DashboardPage() {
                     <p className="text-sm text-slate-300">{row.model}</p>
                     <p className="text-sm text-cyan-200">{row.edge}</p>
                     <p className="text-sm text-slate-400">{row.liquidity}</p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -232,12 +249,17 @@ export function DashboardPage() {
                   <h2 className="mt-2 text-2xl font-medium text-white">Real-time operator stream</h2>
                 </div>
                 <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
+                  <span className="live-pulse mr-2 inline-flex h-2 w-2 rounded-full bg-cyan-300" />
                   Live
                 </div>
               </div>
               <div className="mt-6 space-y-4">
                 {signalFeed.map((item) => (
-                  <div key={item.title} className="rounded-2xl border border-white/6 bg-slate-950/50 p-4">
+                  <motion.div
+                    key={item.title}
+                    whileHover={{ y: -2 }}
+                    className="premium-card rounded-2xl border border-white/6 bg-slate-950/50 p-4"
+                  >
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-white">{item.title}</p>
                       <p className="text-xs text-slate-500">{item.time}</p>
@@ -246,7 +268,7 @@ export function DashboardPage() {
                     <p className={`mt-3 text-xs ${item.positive ? "text-emerald-300" : "text-amber-300"}`}>
                       {item.positive ? "Alpha-positive shift" : "Watch for slippage"}
                     </p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </FadeIn>
@@ -257,13 +279,17 @@ export function DashboardPage() {
                   <p className="text-sm text-slate-400">Copy trading</p>
                   <h2 className="mt-2 text-2xl font-medium text-white">Strategies worth mirroring</h2>
                 </div>
-                <button className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition-colors duration-300 hover:border-cyan-300/24">
+                <button className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-300/24 hover:bg-white/[0.03]">
                   Manage presets
                 </button>
               </div>
               <div className="mt-6 space-y-4">
                 {strategies.map((strategy) => (
-                  <div key={strategy.name} className="rounded-2xl border border-white/6 bg-white/[0.03] p-4">
+                  <motion.div
+                    key={strategy.name}
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    className="premium-card rounded-2xl border border-white/6 bg-white/[0.03] p-4"
+                  >
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-white">{strategy.name}</p>
@@ -273,11 +299,11 @@ export function DashboardPage() {
                     </div>
                     <div className="mt-4 flex items-center justify-between">
                       <p className="text-xs text-slate-500">{strategy.risk}</p>
-                      <button className="rounded-full bg-cyan-400 px-3 py-1.5 text-xs font-medium text-slate-950 transition-transform duration-300 hover:-translate-y-0.5">
+                      <button className="rounded-full bg-cyan-400 px-3 py-1.5 text-xs font-medium text-slate-950 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(0,229,255,0.16)]">
                         Mirror strategy
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </FadeIn>
