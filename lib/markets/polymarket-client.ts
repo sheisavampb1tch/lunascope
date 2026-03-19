@@ -48,6 +48,40 @@ type PriceHistoryResponse = {
   history?: PriceHistoryPoint[];
 };
 
+async function fetchJsonWithRetry<T>(url: URL, init: RequestInit, retries = 2, backoffMs = 400) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12_000);
+
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Polymarket request failed: ${response.status} ${response.statusText}`);
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      lastError = error;
+
+      if (attempt === retries) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, backoffMs * (attempt + 1)));
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Unknown Polymarket fetch error");
+}
+
 function polymarketFetch<T>(path: string, query: Record<string, Primitive | Primitive[] | undefined>, baseUrl: string) {
   const url = new URL(path, baseUrl);
 
@@ -62,24 +96,13 @@ function polymarketFetch<T>(path: string, query: Record<string, Primitive | Prim
     url.searchParams.set(key, String(value));
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
-
-  return fetch(url, {
+  return fetchJsonWithRetry<T>(url, {
     headers: {
       Accept: "application/json",
       "User-Agent": "lunascope-backend/0.1",
     },
-    signal: controller.signal,
     next: { revalidate: 15 },
-  })
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new Error(`Polymarket request failed: ${response.status} ${response.statusText}`);
-      }
-      return (await response.json()) as T;
-    })
-    .finally(() => clearTimeout(timeout));
+  });
 }
 
 export async function listMarkets(params: {
@@ -130,19 +153,13 @@ export async function getOpenInterest(conditionIds: string[]) {
     url.searchParams.append("market", conditionId);
   }
 
-  const response = await fetch(url, {
+  const records = await fetchJsonWithRetry<OpenInterestRecord[]>(url, {
     headers: {
       Accept: "application/json",
       "User-Agent": "lunascope-backend/0.1",
     },
     next: { revalidate: 15 },
   });
-
-  if (!response.ok) {
-    throw new Error(`Polymarket open interest request failed: ${response.status} ${response.statusText}`);
-  }
-
-  const records = (await response.json()) as OpenInterestRecord[];
   return new Map(records.map((record) => [record.market, Number(record.openInterest) || 0]));
 }
 

@@ -3,6 +3,7 @@ export type OutcomeSide = "YES" | "NO";
 export type MarketToken = {
   id: string;
   side: OutcomeSide;
+  label: string;
   price: number | null;
 };
 

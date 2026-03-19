@@ -1,11 +1,11 @@
 import { createCachedJsonFetcher } from "@/lib/cache";
 import { DefaultNeuralScorer, scoreMarkets } from "@/lib/ai/scoring-service";
+import { persistSnapshot } from "@/lib/persistence/supabase";
 import { normalizeMarket } from "@/lib/markets/normalizer";
-import { getOpenInterest, getPriceHistory, listActiveMarkets } from "@/lib/markets/polymarket-client";
+import { getOpenInterest, listActiveMarkets } from "@/lib/markets/polymarket-client";
 import type { MarketSnapshot, NormalizedMarket } from "@/lib/markets/types";
 
 const DEFAULT_LIMIT = 60;
-const HISTORY_MARKET_COUNT = 8;
 const CACHE_TTL_SECONDS = 20;
 
 function buildCacheKey(limit: number) {
@@ -14,39 +14,21 @@ function buildCacheKey(limit: number) {
 
 async function enrichMarkets(limit: number) {
   const rawMarkets = await listActiveMarkets(limit);
-  const openInterestMap = await getOpenInterest(rawMarkets.map((market) => market.conditionId));
+  let openInterestMap = new Map<string, number>();
 
-  const normalized = rawMarkets
+  try {
+    openInterestMap = await getOpenInterest(rawMarkets.map((market) => market.conditionId));
+  } catch {
+    openInterestMap = new Map<string, number>();
+  }
+
+  return rawMarkets
     .map((market) =>
       normalizeMarket(market, {
         openInterest: openInterestMap.get(market.conditionId) ?? 0,
       }),
     )
     .filter((market): market is NormalizedMarket => market !== null);
-
-  const candidatesForHistory = normalized
-    .slice()
-    .sort((left, right) => right.volume24hr - left.volume24hr)
-    .slice(0, HISTORY_MARKET_COUNT);
-
-  await Promise.all(
-    candidatesForHistory.map(async (market) => {
-      const yesToken = market.tokens.find((token) => token.side === "YES");
-      if (!yesToken?.id) return;
-
-      try {
-        const history = await getPriceHistory(yesToken.id, 60, "1d");
-        market.history = {
-          interval: "1d",
-          points: history,
-        };
-      } catch {
-        market.history = null;
-      }
-    }),
-  );
-
-  return normalized;
 }
 
 async function buildSnapshot(limit: number): Promise<MarketSnapshot> {
@@ -68,6 +50,16 @@ async function buildSnapshot(limit: number): Promise<MarketSnapshot> {
 
 export function getCachedMarketSnapshot(limit = DEFAULT_LIMIT) {
   return createCachedJsonFetcher(buildCacheKey(limit), () => buildSnapshot(limit), CACHE_TTL_SECONDS, ["markets", "signals"])();
+}
+
+export async function refreshAndPersistMarketSnapshot(limit = DEFAULT_LIMIT) {
+  const snapshot = await buildSnapshot(limit);
+  const persistence = await persistSnapshot(snapshot);
+
+  return {
+    snapshot,
+    persistence,
+  };
 }
 
 export async function getTopSignals(limit = 12) {

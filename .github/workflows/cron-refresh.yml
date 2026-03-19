@@ -1,0 +1,21 @@
+name: Cron Refresh
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger LunaScope snapshot refresh
+        env:
+          CRON_TARGET_URL: ${{ secrets.CRON_TARGET_URL }}
+          API_SECRET_KEY: ${{ secrets.API_SECRET_KEY }}
+        run: |
+          BASE_URL="${CRON_TARGET_URL%/}"
+          curl --fail --show-error --silent \
+            -X POST \
+            -H "x-api-key: ${API_SECRET_KEY}" \
+            "${BASE_URL}/api/markets/snapshot?limit=60"

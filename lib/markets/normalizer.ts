@@ -19,12 +19,22 @@ function asNumber(value: unknown) {
   return typeof value === "number" ? value : Number(value) || 0;
 }
 
-function buildTokens(tokenIds: unknown[], prices: unknown[]) {
-  const sides: OutcomeSide[] = ["YES", "NO"];
+function normalizeOutcomeLabel(value: unknown) {
+  return String(value ?? "").trim().toUpperCase();
+}
 
+function isBinaryYesNo(outcomes: unknown[]) {
+  if (outcomes.length !== 2) return false;
+
+  const labels = outcomes.map(normalizeOutcomeLabel).sort();
+  return labels[0] === "NO" && labels[1] === "YES";
+}
+
+function buildTokens(tokenIds: unknown[], prices: unknown[], outcomes: unknown[]) {
   return tokenIds.slice(0, 2).map((id, index) => ({
     id: String(id),
-    side: sides[index] ?? "YES",
+    side: (normalizeOutcomeLabel(outcomes[index]) === "NO" ? "NO" : "YES") as OutcomeSide,
+    label: String(outcomes[index] ?? ""),
     price: prices[index] === undefined ? null : clamp(asNumber(prices[index]), 0, 1),
   }));
 }
@@ -81,8 +91,14 @@ export function normalizeMarket(
   }
 
   const tokenIds = parseJsonArrayString(market.clobTokenIds);
+  const outcomes = parseJsonArrayString(market.outcomes);
   const outcomePrices = parseJsonArrayString(market.outcomePrices);
-  const tokens = buildTokens(tokenIds, outcomePrices);
+
+  if (!isBinaryYesNo(outcomes) || tokenIds.length !== 2) {
+    return null;
+  }
+
+  const tokens = buildTokens(tokenIds, outcomePrices, outcomes);
   const probability = deriveMarketProbability(tokens, market.bestBid, market.bestAsk, market.lastTradePrice);
 
   return {
