@@ -1,314 +1,497 @@
 "use client";
 
 import Link from "next/link";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { FadeIn, ScaleIn } from "./motion";
+import {
+  BellIcon,
+  ChevronRightIcon,
+  DashboardIcon,
+  LockIcon,
+  LogoMark,
+  MarketIcon,
+  PulseIcon,
+  SearchIcon,
+  SparkIcon,
+  WalletIcon,
+} from "./icons";
+import { formatCompactNumber, formatPercent, formatSignedPercent, shortenAddress } from "./format";
+import { FadeIn } from "./motion";
+import { useWalletAuth } from "./use-wallet-auth";
 
-const summaryCards = [
-  { label: "Portfolio edge", value: "+12.8 pts", delta: "+2.4 pts today", tone: "cyan" },
-  { label: "Live signals", value: "18", delta: "6 ready to mirror", tone: "indigo" },
-  { label: "Copy strategies", value: "04", delta: "2 outperforming", tone: "slate" },
-  { label: "Event watchlist", value: "37", delta: "11 nearing catalyst", tone: "emerald" },
-];
+type LiveSignal = {
+  market_id: string;
+  title: string;
+  analysis: {
+    market_price: number;
+    ai_probability: number;
+    edge: number;
+    side: "YES" | "NO";
+  };
+  rationale: string;
+  signal_score: number;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+};
 
-const opportunities = [
+type SnapshotMarket = {
+  id: string;
+  question: string;
+  category: string | null;
+  liquidity: number;
+  volume24hr: number;
+  marketProbability: number;
+  spread: number | null;
+  openInterest: number;
+};
+
+type SnapshotSignal = {
+  marketId: string;
+  question: string;
+  category: string | null;
+  generatedAt: string;
+  publishedSignal?: LiveSignal;
+};
+
+type SnapshotResponse = {
+  meta: {
+    fetchedAt: string;
+    marketCount: number;
+  };
+  markets: SnapshotMarket[];
+  signals: SnapshotSignal[];
+};
+
+const sidebarGroups = [
   {
-    name: "Will the Fed cut before September?",
-    category: "Macro",
-    market: "42%",
-    model: "51%",
-    edge: "+9 pts",
-    confidence: 82,
-    liquidity: "$2.1M",
+    title: "Overview",
+    items: [
+      { label: "Dashboard", icon: DashboardIcon, active: true },
+      { label: "Signals", icon: PulseIcon },
+      { label: "Markets", icon: MarketIcon },
+    ],
   },
   {
-    name: "Will ETH ETF inflows beat January?",
-    category: "Crypto",
-    market: "58%",
-    model: "64%",
-    edge: "+6 pts",
-    confidence: 74,
-    liquidity: "$1.4M",
-  },
-  {
-    name: "Will Trump win Florida by 5+ points?",
-    category: "Election",
-    market: "47%",
-    model: "54%",
-    edge: "+7 pts",
-    confidence: 79,
-    liquidity: "$3.6M",
+    title: "Access",
+    items: [
+      { label: "Wallet", icon: WalletIcon },
+      { label: "Invites", icon: LockIcon },
+      { label: "Analyst", icon: SparkIcon },
+    ],
   },
 ];
-
-const signalFeed = [
-  { time: "12:42", title: "Macro Oracle copied into Fed cut basket", detail: "Synchronized 4 wallets at 0.44 average fill.", positive: true },
-  { time: "12:31", title: "Model confidence increased on recession contracts", detail: "News sentiment divergence crossed threshold.", positive: true },
-  { time: "12:12", title: "Election market moved into watch state", detail: "Spread tightened after order book depth weakened.", positive: false },
-];
-
-const strategies = [
-  { name: "Macro Oracle", followers: "124 mirroring", pnl: "+18.2%", risk: "Low turnover" },
-  { name: "Catalyst Hunter", followers: "91 mirroring", pnl: "+11.4%", risk: "Event-driven" },
-  { name: "Election Flow", followers: "203 mirroring", pnl: "+9.7%", risk: "High liquidity" },
-];
-
-function toneClass(tone: string) {
-  if (tone === "cyan") return "from-cyan-400/18 to-cyan-400/5";
-  if (tone === "indigo") return "from-indigo-400/18 to-indigo-400/5";
-  if (tone === "emerald") return "from-emerald-400/18 to-emerald-400/5";
-  return "from-white/10 to-white/[0.03]";
-}
 
 export function DashboardPage() {
+  const [signals, setSignals] = useState<LiveSignal[]>([]);
+  const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const {
+    session,
+    loadingSession,
+    connecting,
+    redeeming,
+    error,
+    setError,
+    connectInjectedWallet,
+    redeemInvite,
+    logout,
+  } = useWalletAuth();
+
+  async function refreshData(silent = false) {
+    if (silent) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const [signalsResponse, snapshotResponse] = await Promise.all([
+        fetch("/api/signals/live?limit=12", { cache: "no-store" }),
+        fetch("/api/markets/snapshot?limit=60", { cache: "no-store" }),
+      ]);
+
+      const signalsJson = (await signalsResponse.json()) as { signals?: LiveSignal[] };
+      const snapshotJson = (await snapshotResponse.json()) as SnapshotResponse;
+
+      setSignals(signalsJson.signals ?? []);
+      setSnapshot(snapshotJson);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshData();
+    const interval = setInterval(() => {
+      void refreshData(true);
+    }, 60_000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const marketById = useMemo(() => {
+    const map = new Map<string, SnapshotMarket>();
+    for (const market of snapshot?.markets ?? []) {
+      map.set(market.id, market);
+    }
+    return map;
+  }, [snapshot]);
+
+  const filteredSignals = useMemo(() => {
+    const query = deferredSearch.trim().toLowerCase();
+    if (!query) return signals;
+    return signals.filter((signal) => signal.title.toLowerCase().includes(query));
+  }, [signals, deferredSearch]);
+
+  const topSignal = filteredSignals[0] ?? signals[0];
+  const avgEdge = signals.length > 0 ? signals.reduce((sum, signal) => sum + Math.abs(signal.analysis.edge), 0) / signals.length : 0;
+  const averageSignalScore = signals.length > 0 ? signals.reduce((sum, signal) => sum + signal.signal_score, 0) / signals.length : 0;
+  const categoryCount = new Set((snapshot?.markets ?? []).map((market) => market.category).filter(Boolean)).size;
+
+  async function handleConnect() {
+    try {
+      await connectInjectedWallet();
+    } catch {
+      return;
+    }
+  }
+
+  async function handleRedeem() {
+    try {
+      await redeemInvite(inviteCode);
+      setInviteCode("");
+    } catch {
+      return;
+    }
+  }
+
   return (
     <main className="cosmic-shell min-h-screen overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-[360px] bg-[radial-gradient(circle_at_top,rgba(0,229,255,0.14),transparent_45%)]" />
-      <div className="absolute right-[8%] top-[120px] h-[240px] w-[240px] rounded-full bg-indigo-500/12 blur-[140px]" />
+      <div className="luna-grid-mask absolute inset-0" />
+      <div className="absolute inset-x-0 top-0 h-[340px] bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.22),transparent_46%)]" />
 
-      <div className="mx-auto max-w-7xl px-6 py-6 md:px-8">
-        <ScaleIn>
-          <header className="glass-panel glow-ring flex flex-wrap items-center justify-between gap-4 rounded-[28px] px-5 py-4">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/24 bg-cyan-400/8">
-                  <div className="live-pulse h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(0,229,255,0.85)]" />
+      <div className="mx-auto max-w-[1500px] px-4 py-4 md:px-6">
+        <div className="grid gap-4 xl:grid-cols-[290px_minmax(0,1fr)]">
+          <aside className="luna-shell sticky top-4 hidden h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-[34px] xl:flex">
+            <div className="border-b border-white/6 px-6 py-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
+                  <LogoMark className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Lunascope</p>
-                  <p className="text-base text-white">Trading intelligence dashboard</p>
+                  <p className="text-lg font-semibold text-white">Lunascope</p>
+                  <p className="text-sm text-slate-500">AI Edge Terminal</p>
                 </div>
-              </Link>
-
-              <div className="hidden items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] p-1 md:flex">
-                {["Overview", "Markets", "Signals", "Copy Trading"].map((item, index) => (
-                  <button
-                    key={item}
-                    className={`rounded-full px-4 py-2 text-sm transition-all duration-300 ${
-                      index === 0 ? "bg-cyan-400 text-slate-950" : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ))}
+              </div>
+              <div className="mt-10">
+                <p className="text-[2.45rem] font-semibold leading-[1] tracking-[-0.06em] text-white">
+                  {session?.authenticated ? `Welcome back` : "Live signal desk"}
+                </p>
+                <p className="mt-4 text-sm leading-7 text-slate-400">
+                  {session?.authenticated
+                    ? `Session active for ${shortenAddress(session.walletAddress)}`
+                    : "Binary event intelligence in one quieter, sharper command surface."}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <motion.div
-                animate={{ boxShadow: ["0 0 0 rgba(61,217,164,0.14)", "0 0 20px rgba(61,217,164,0.16)", "0 0 0 rgba(61,217,164,0.14)"] }}
-                transition={{ repeat: Number.POSITIVE_INFINITY, duration: 2.8 }}
-                className="rounded-full border border-emerald-400/18 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200"
-              >
-                Wallet connected • 0x7A...19C2
-              </motion.div>
-              <button className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-300/24 hover:bg-white/[0.03]">
-                Export briefing
-              </button>
-            </div>
-          </header>
-        </ScaleIn>
-
-        <section className="grid gap-6 pb-6 pt-10 lg:grid-cols-[1.2fr_0.8fr]">
-          <FadeIn>
-            <div className="max-w-3xl">
-              <p className="text-sm uppercase tracking-[0.28em] text-cyan-200/80">Overview</p>
-              <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white md:text-6xl">
-                Calm signal flow for fast-moving prediction markets.
-              </h1>
-              <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 md:text-lg">
-                Prioritized opportunities, copyable strategies, and confidence shifts are arranged into one uninterrupted premium surface designed to feel controlled under pressure.
-              </p>
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.12}>
-            <motion.div whileHover={{ y: -4 }} className="glass-panel premium-card rounded-[32px] p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">Session focus</p>
-                  <p className="mt-2 text-2xl font-medium text-white">Macro dislocations</p>
+            <div className="flex-1 overflow-y-auto px-5 py-6">
+              {sidebarGroups.map((group) => (
+                <div key={group.title} className="mb-8">
+                  <p className="px-3 text-xs uppercase tracking-[0.26em] text-slate-500">{group.title}</p>
+                  <div className="mt-3 space-y-2">
+                    {group.items.map((item) => (
+                      <button
+                        key={item.label}
+                        className={`flex w-full items-center justify-between rounded-[22px] px-4 py-3 text-left text-sm transition-all duration-300 ${
+                          item.active
+                            ? "border border-white/10 bg-white/[0.05] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                            : "text-slate-400 hover:bg-white/[0.03] hover:text-white"
+                        }`}
+                      >
+                        <span className="flex items-center gap-3">
+                          <item.icon className="h-4.5 w-4.5" />
+                          {item.label}
+                        </span>
+                        {item.active ? <span className="h-2 w-2 rounded-full bg-cyan-300" /> : null}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
-                  Highest alpha cluster
-                </div>
-              </div>
-              <div className="mt-6 space-y-4">
-                {[
-                  ["Fed cut basket", "74% conviction", "Up 9 pts vs market"],
-                  ["Recession timing", "66% conviction", "Catalyst in 48h"],
-                  ["ETH ETF flows", "61% conviction", "Spread stabilizing"],
-                ].map(([title, conviction, detail]) => (
-                  <motion.div
-                    key={title}
-                    whileHover={{ y: -2 }}
-                    className="premium-card rounded-2xl border border-white/6 bg-slate-950/45 px-4 py-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-white">{title}</p>
-                      <p className="text-xs text-cyan-200">{conviction}</p>
-                    </div>
-                    <p className="mt-2 text-xs text-slate-500">{detail}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          </FadeIn>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map((card, index) => (
-            <motion.div
-              key={card.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -4, scale: 1.01 }}
-              transition={{ duration: 0.55, delay: 0.06 * index, ease: [0.22, 1, 0.36, 1] }}
-              className={`glass-panel premium-card rounded-[28px] bg-gradient-to-b p-6 ${toneClass(card.tone)}`}
-            >
-              <p className="text-sm text-slate-400">{card.label}</p>
-              <p className="mt-5 text-4xl font-semibold tracking-[-0.05em] text-white">{card.value}</p>
-              <p className="mt-3 text-sm text-slate-400">{card.delta}</p>
-            </motion.div>
-          ))}
-        </section>
-
-        <section className="grid gap-6 py-8 xl:grid-cols-[1.18fr_0.82fr]">
-          <FadeIn className="glass-panel rounded-[32px] p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-slate-400">High-conviction markets</p>
-                <h2 className="mt-2 text-2xl font-medium tracking-[-0.04em] text-white">Today&apos;s best AI-priced edge</h2>
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] p-1">
-                {["All", "Macro", "Crypto", "Politics"].map((filter, index) => (
-                  <button
-                    key={filter}
-                    className={`rounded-full px-4 py-2 text-sm transition-all duration-300 ${
-                      index === 0 ? "bg-white text-slate-950" : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    {filter}
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-[28px] border border-white/6">
-              <div className="grid grid-cols-[1.6fr_0.55fr_0.55fr_0.5fr_0.7fr_0.55fr] gap-4 border-b border-white/6 bg-white/[0.03] px-5 py-4 text-xs uppercase tracking-[0.24em] text-slate-500">
-                <p>Market</p>
-                <p>Type</p>
-                <p>Market</p>
-                <p>Model</p>
-                <p>Edge</p>
-                <p>Depth</p>
-              </div>
-              <div className="divide-y divide-white/6">
-                {opportunities.map((row, index) => (
-                  <motion.div
-                    key={row.name}
-                    initial={{ opacity: 0, y: 18 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.35 }}
-                    transition={{ duration: 0.45, delay: index * 0.08 }}
-                    whileHover={{ backgroundColor: "rgba(255,255,255,0.04)" }}
-                    className="grid grid-cols-[1.6fr_0.55fr_0.55fr_0.5fr_0.7fr_0.55fr] gap-4 px-5 py-5"
-                  >
-                    <div>
-                      <p className="text-sm text-white">{row.name}</p>
-                      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/6">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          whileInView={{ width: `${row.confidence}%` }}
-                          viewport={{ once: true, amount: 0.6 }}
-                          animate={{ opacity: [0.82, 1, 0.82] }}
-                          transition={{
-                            width: { duration: 1, ease: [0.22, 1, 0.36, 1] },
-                            opacity: { repeat: Number.POSITIVE_INFINITY, duration: 2.6 },
-                          }}
-                          className="confidence-bar h-full rounded-full bg-gradient-to-r from-cyan-300 to-indigo-400"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-400">{row.category}</p>
-                    <p className="text-sm text-slate-300">{row.market}</p>
-                    <p className="text-sm text-slate-300">{row.model}</p>
-                    <p className="text-sm text-cyan-200">{row.edge}</p>
-                    <p className="text-sm text-slate-400">{row.liquidity}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </FadeIn>
-
-          <div className="space-y-6">
-            <FadeIn delay={0.08} className="glass-panel rounded-[32px] p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">Signal feed</p>
-                  <h2 className="mt-2 text-2xl font-medium text-white">Real-time operator stream</h2>
-                </div>
-                <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
-                  <span className="live-pulse mr-2 inline-flex h-2 w-2 rounded-full bg-cyan-300" />
-                  Live
-                </div>
-              </div>
-              <div className="mt-6 space-y-4">
-                {signalFeed.map((item) => (
-                  <motion.div
-                    key={item.title}
-                    whileHover={{ y: -2 }}
-                    className="premium-card rounded-2xl border border-white/6 bg-slate-950/50 p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-white">{item.title}</p>
-                      <p className="text-xs text-slate-500">{item.time}</p>
-                    </div>
-                    <p className="mt-2 text-sm text-slate-400">{item.detail}</p>
-                    <p className={`mt-3 text-xs ${item.positive ? "text-emerald-300" : "text-amber-300"}`}>
-                      {item.positive ? "Alpha-positive shift" : "Watch for slippage"}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={0.16} className="glass-panel rounded-[32px] p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">Copy trading</p>
-                  <h2 className="mt-2 text-2xl font-medium text-white">Strategies worth mirroring</h2>
-                </div>
-                <button className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-300/24 hover:bg-white/[0.03]">
-                  Manage presets
+            <div className="border-t border-white/6 p-5">
+              <div className="rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(99,102,241,0.18),rgba(6,11,21,0.2))] p-5">
+                <p className="text-sm font-medium text-white">Premium access</p>
+                <p className="mt-3 text-sm leading-6 text-slate-400">
+                  Unlock faster alerts, richer analyst flow, and wallet-gated operator tools.
+                </p>
+                <button onClick={session?.authenticated ? logout : handleConnect} className="luna-button mt-5 w-full justify-center px-4 py-3 text-sm">
+                  {session?.authenticated ? "Logout" : "Connect wallet"}
                 </button>
               </div>
-              <div className="mt-6 space-y-4">
-                {strategies.map((strategy) => (
-                  <motion.div
-                    key={strategy.name}
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    className="premium-card rounded-2xl border border-white/6 bg-white/[0.03] p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-white">{strategy.name}</p>
-                        <p className="mt-1 text-xs text-slate-500">{strategy.followers}</p>
-                      </div>
-                      <p className="text-sm text-emerald-300">{strategy.pnl}</p>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <p className="text-xs text-slate-500">{strategy.risk}</p>
-                      <button className="rounded-full bg-cyan-400 px-3 py-1.5 text-xs font-medium text-slate-950 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(0,229,255,0.16)]">
-                        Mirror strategy
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
+            </div>
+          </aside>
+
+          <div className="space-y-4">
+            <header className="luna-shell flex flex-wrap items-center justify-between gap-4 rounded-[30px] px-5 py-4">
+              <div className="flex min-w-[260px] flex-1 items-center gap-3 rounded-full border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+                <SearchIcon className="h-4 w-4 text-slate-500" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search signals and markets..."
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                />
               </div>
-            </FadeIn>
+
+              <div className="flex items-center gap-3">
+                <button onClick={() => void refreshData(true)} className="luna-button-secondary px-4 py-2 text-sm">
+                  {refreshing ? "Refreshing..." : "Refresh"}
+                </button>
+                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-slate-300">
+                  <BellIcon className="h-4 w-4" />
+                </button>
+                <button onClick={session?.authenticated ? logout : handleConnect} className="luna-button px-4 py-2 text-sm">
+                  {loadingSession ? "Checking..." : session?.authenticated ? shortenAddress(session.walletAddress) : "Connect wallet"}
+                </button>
+              </div>
+            </header>
+
+            <div className="grid gap-4 lg:grid-cols-[1.18fr_0.82fr]">
+              <FadeIn className="luna-shell rounded-[34px] p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/80">AI Signal Radar</p>
+                    <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-[1.02] tracking-[-0.055em] text-white md:text-5xl">
+                      Live operator dashboard for binary market edge.
+                    </h1>
+                    <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300">
+                      Real signals now flow from the backend into the UI. This terminal is no longer placeholder shell work; it is a real-time skin over LunaScope&apos;s live market engine.
+                    </p>
+                  </div>
+                  <div className="rounded-full border border-emerald-400/18 bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-200">
+                    {snapshot?.meta?.fetchedAt ? `Updated ${new Date(snapshot.meta.fetchedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : "Live"}
+                  </div>
+                </div>
+
+                <div className="mt-8 grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
+                  <div className="rounded-[30px] border border-white/6 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.18),transparent_52%),linear-gradient(180deg,rgba(10,15,27,0.98),rgba(7,10,19,0.96))] p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-slate-400">Top live signal</p>
+                        <h2 className="mt-3 max-w-2xl text-2xl font-medium leading-tight text-white">
+                          {topSignal?.title ?? "Loading live AI analyst signal"}
+                        </h2>
+                      </div>
+                      <div className="rounded-full border border-cyan-300/18 bg-cyan-300/10 px-3 py-1 text-xs text-cyan-100">
+                        {topSignal ? `${topSignal.signal_score.toFixed(1)}/10` : "Live"}
+                      </div>
+                    </div>
+
+                    <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300">
+                      {topSignal?.rationale ?? "The top analyst rationale appears here as soon as the backend returns live signals."}
+                    </p>
+
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <Link
+                        href={topSignal ? `/signals/${topSignal.market_id}` : "/dashboard"}
+                        className="luna-button inline-flex items-center gap-2 px-5 py-3 text-sm"
+                      >
+                        Open signal
+                        <ChevronRightIcon className="h-4 w-4" />
+                      </Link>
+                      <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+                        {topSignal ? `${topSignal.analysis.side} bias at ${formatPercent(topSignal.analysis.ai_probability)}` : "Waiting for signal"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                    {[
+                      ["Live signals", String(signals.length), "AI-screened ideas"],
+                      ["Average edge", formatSignedPercent(avgEdge, 1), "vs market price"],
+                      ["Tracked markets", String(snapshot?.meta.marketCount ?? 0), "binary contracts only"],
+                      ["Categories", String(categoryCount), "macro, crypto, politics"],
+                    ].map(([label, value, note]) => (
+                      <motion.div key={label} whileHover={{ y: -4 }} className="premium-card rounded-[26px] border border-white/6 bg-white/[0.03] p-5">
+                        <p className="text-sm text-slate-400">{label}</p>
+                        <p className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-white">{value}</p>
+                        <p className="mt-2 text-sm text-slate-500">{note}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </FadeIn>
+
+              <FadeIn delay={0.08} className="space-y-4">
+                <div className="luna-shell rounded-[30px] p-5">
+                  <div className="flex items-center gap-3">
+                    <WalletIcon className="h-5 w-5 text-cyan-200" />
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {session?.authenticated ? shortenAddress(session.walletAddress) : "Guest session"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {session?.access?.hasAccess ? `Tier ${session.access.tier} active` : "Connect wallet and redeem invite to unlock gated modules."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {!session?.access?.hasAccess ? (
+                    <div className="mt-5 space-y-3">
+                      <input
+                        value={inviteCode}
+                        onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                        placeholder="LUNA-ALPHA"
+                        className="w-full rounded-[18px] border border-white/8 bg-slate-950/60 px-4 py-3 text-sm tracking-[0.22em] text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/28"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={handleConnect} disabled={connecting} className="luna-button flex-1 justify-center px-4 py-3 text-sm disabled:opacity-70">
+                          {connecting ? "Signing..." : "Connect"}
+                        </button>
+                        <button onClick={handleRedeem} disabled={!session?.authenticated || redeeming} className="luna-button-secondary flex-1 justify-center px-4 py-3 text-sm disabled:opacity-60">
+                          {redeeming ? "Applying..." : "Redeem"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-5 rounded-[20px] border border-emerald-400/18 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+                      Premium access is live on this wallet.
+                    </div>
+                  )}
+
+                  {error ? <p className="mt-4 text-sm text-rose-300">{error}</p> : null}
+                </div>
+
+                <div className="luna-shell rounded-[30px] p-5">
+                  <p className="text-sm text-slate-400">Session intelligence</p>
+                  <div className="mt-5 space-y-3">
+                    {[
+                      ["Average signal score", averageSignalScore ? averageSignalScore.toFixed(1) : "--"],
+                      ["Top confidence", topSignal?.confidence ?? "--"],
+                      ["Lead side", topSignal?.analysis.side ?? "--"],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between rounded-[18px] bg-white/[0.03] px-4 py-3 text-sm">
+                        <span className="text-slate-400">{label}</span>
+                        <span className="text-white">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </FadeIn>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[1.12fr_0.88fr]">
+              <FadeIn className="luna-shell rounded-[34px] p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-slate-400">Live analyst signals</p>
+                    <h2 className="mt-2 text-2xl font-medium text-white">What LunaScope would trade right now</h2>
+                  </div>
+                  <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-[0.22em] text-slate-400">
+                    {filteredSignals.length} visible
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  {loading
+                    ? Array.from({ length: 5 }).map((_, index) => (
+                        <div key={index} className="h-28 animate-pulse rounded-[24px] bg-white/[0.03]" />
+                      ))
+                    : filteredSignals.map((signal) => {
+                        const market = marketById.get(signal.market_id);
+                        return (
+                          <Link
+                            key={signal.market_id}
+                            href={`/signals/${signal.market_id}`}
+                            className="premium-card block rounded-[26px] border border-white/6 bg-white/[0.03] px-5 py-5 transition-all duration-300 hover:border-cyan-300/18"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-4">
+                              <div className="max-w-3xl">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full border border-cyan-300/18 bg-cyan-300/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-cyan-100">
+                                    {signal.analysis.side}
+                                  </span>
+                                  <span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                                    {signal.confidence}
+                                  </span>
+                                  <span className="text-xs text-slate-500">{market?.category ?? "General"}</span>
+                                </div>
+                                <p className="mt-4 text-lg font-medium leading-7 text-white">{signal.title}</p>
+                                <p className="mt-3 line-clamp-2 text-sm leading-7 text-slate-400">{signal.rationale}</p>
+                              </div>
+                              <div className="min-w-[180px] rounded-[22px] border border-white/6 bg-slate-950/45 px-4 py-3">
+                                <div className="flex items-center justify-between text-sm text-slate-400">
+                                  <span>Market</span>
+                                  <span>{formatPercent(signal.analysis.market_price)}</span>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between text-sm text-slate-400">
+                                  <span>AI</span>
+                                  <span>{formatPercent(signal.analysis.ai_probability)}</span>
+                                </div>
+                                <div className="mt-4 flex items-center justify-between">
+                                  <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Edge</span>
+                                  <span className="text-lg font-medium text-cyan-200">{formatSignedPercent(signal.analysis.edge, 1)}</span>
+                                </div>
+                                <div className="mt-2 text-xs text-slate-500">Score {signal.signal_score.toFixed(1)} / 10</div>
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                </div>
+              </FadeIn>
+
+              <div className="space-y-4">
+                <FadeIn delay={0.08} className="luna-shell rounded-[34px] p-6">
+                  <p className="text-sm text-slate-400">Market overview</p>
+                  <h2 className="mt-2 text-2xl font-medium text-white">Highest-liquidity binary contracts</h2>
+                  <div className="mt-6 space-y-3">
+                    {(snapshot?.markets ?? [])
+                      .slice()
+                      .sort((left, right) => right.volume24hr - left.volume24hr)
+                      .slice(0, 6)
+                      .map((market) => (
+                        <div key={market.id} className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="line-clamp-2 text-sm font-medium text-white">{market.question}</p>
+                              <p className="mt-2 text-xs text-slate-500">{market.category ?? "General"} • {formatCompactNumber(market.openInterest)} OI</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-white">{formatPercent(market.marketProbability)}</p>
+                              <p className="mt-2 text-xs text-slate-500">{formatCompactNumber(market.volume24hr)} 24h vol</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </FadeIn>
+
+                <FadeIn delay={0.12} className="luna-shell rounded-[34px] p-6">
+                  <p className="text-sm text-slate-400">Operator tape</p>
+                  <h2 className="mt-2 text-2xl font-medium text-white">Fresh rationale highlights</h2>
+                  <div className="mt-6 space-y-3">
+                    {(snapshot?.signals ?? []).slice(0, 4).map((item) => (
+                      <div key={item.marketId} className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4">
+                        <p className="text-sm font-medium text-white">{item.question}</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-400">
+                          {item.publishedSignal?.rationale ?? "Analyst rationale is being refreshed."}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </FadeIn>
+              </div>
+            </div>
           </div>
-        </section>
+        </div>
       </div>
     </main>
   );

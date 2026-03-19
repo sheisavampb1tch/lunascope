@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInviteCodeRecord } from "@/lib/access/repository";
 import { redeemInviteForWallet } from "@/lib/access/service";
 import { buildSession, readSession, setSessionCookie } from "@/lib/wallet/auth";
 
 export async function POST(request: NextRequest) {
+  const session = readSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "Wallet session required." }, { status: 401 });
+  }
+
   const body = (await request.json()) as { inviteCode?: string };
   const inviteCode = body.inviteCode?.trim();
 
@@ -11,24 +15,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invite code is required." }, { status: 400 });
   }
 
-  const session = readSession(request);
-  if (!session) {
-    const invite = await getInviteCodeRecord(inviteCode);
-    return NextResponse.json(
-      {
-        granted: false,
-        requiresWalletAuth: true,
-        inviteValid: Boolean(invite),
-      },
-      { status: invite ? 200 : 403 },
-    );
-  }
-
   try {
     const result = await redeemInviteForWallet(session.walletAddress, inviteCode);
     const nextSession = await buildSession(session.walletAddress, session.chainId);
     const response = NextResponse.json({
-      granted: result.access.hasAccess,
+      success: true,
       access: result.access,
       alreadyGranted: result.alreadyGranted,
     });
