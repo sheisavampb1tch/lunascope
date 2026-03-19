@@ -188,7 +188,7 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="mt-10">
-                <p className="text-[2.45rem] font-semibold leading-[1] tracking-[-0.06em] text-white">
+                <p className="luna-heading text-[2.45rem] leading-[1] text-white">
                   {session?.authenticated ? `Welcome back` : "Live signal desk"}
                 </p>
                 <p className="mt-4 text-sm leading-7 text-slate-400">
@@ -268,7 +268,7 @@ export function DashboardPage() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/80">AI Signal Radar</p>
-                    <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-[1.02] tracking-[-0.055em] text-white md:text-5xl">
+                    <h1 className="luna-heading mt-4 max-w-3xl text-4xl leading-[1.02] text-white md:text-5xl">
                       Live operator dashboard for binary market edge.
                     </h1>
                     <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300">
@@ -285,7 +285,7 @@ export function DashboardPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-sm text-slate-400">Top live signal</p>
-                        <h2 className="mt-3 max-w-2xl text-2xl font-medium leading-tight text-white">
+                        <h2 className="luna-heading mt-3 max-w-2xl text-2xl leading-tight text-white">
                           {topSignal?.title ?? "Loading live AI analyst signal"}
                         </h2>
                       </div>
@@ -321,7 +321,7 @@ export function DashboardPage() {
                     ].map(([label, value, note]) => (
                       <motion.div key={label} whileHover={{ y: -4 }} className="premium-card rounded-[26px] border border-white/6 bg-white/[0.03] p-5">
                         <p className="text-sm text-slate-400">{label}</p>
-                        <p className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-white">{value}</p>
+                        <p className="data-number mt-4 text-3xl font-semibold text-white">{value}</p>
                         <p className="mt-2 text-sm text-slate-500">{note}</p>
                       </motion.div>
                     ))}
@@ -379,7 +379,7 @@ export function DashboardPage() {
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between rounded-[18px] bg-white/[0.03] px-4 py-3 text-sm">
                         <span className="text-slate-400">{label}</span>
-                        <span className="text-white">{value}</span>
+                        <span className="data-number text-white">{value}</span>
                       </div>
                     ))}
                   </div>
@@ -392,7 +392,7 @@ export function DashboardPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-sm text-slate-400">Live analyst signals</p>
-                    <h2 className="mt-2 text-2xl font-medium text-white">What LunaScope would trade right now</h2>
+                    <h2 className="luna-heading mt-2 text-2xl text-white">What LunaScope would trade right now</h2>
                   </div>
                   <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-[0.22em] text-slate-400">
                     {filteredSignals.length} visible
@@ -423,23 +423,23 @@ export function DashboardPage() {
                                   </span>
                                   <span className="text-xs text-slate-500">{market?.category ?? "General"}</span>
                                 </div>
-                                <p className="mt-4 text-lg font-medium leading-7 text-white">{signal.title}</p>
+                                <p className="luna-heading mt-4 text-lg leading-7 text-white">{signal.title}</p>
                                 <p className="mt-3 line-clamp-2 text-sm leading-7 text-slate-400">{signal.rationale}</p>
                               </div>
                               <div className="min-w-[180px] rounded-[22px] border border-white/6 bg-slate-950/45 px-4 py-3">
                                 <div className="flex items-center justify-between text-sm text-slate-400">
                                   <span>Market</span>
-                                  <span>{formatPercent(signal.analysis.market_price)}</span>
+                                  <span className="data-number">{formatPercent(signal.analysis.market_price)}</span>
                                 </div>
                                 <div className="mt-2 flex items-center justify-between text-sm text-slate-400">
                                   <span>AI</span>
-                                  <span>{formatPercent(signal.analysis.ai_probability)}</span>
+                                  <span className="data-number">{formatPercent(signal.analysis.ai_probability)}</span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between">
                                   <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Edge</span>
-                                  <span className="text-lg font-medium text-cyan-200">{formatSignedPercent(signal.analysis.edge, 1)}</span>
+                                  <span className="data-number text-lg font-medium text-cyan-200">{formatSignedPercent(signal.analysis.edge, 1)}</span>
                                 </div>
-                                <div className="mt-2 text-xs text-slate-500">Score {signal.signal_score.toFixed(1)} / 10</div>
+                                <div className="data-number mt-2 text-xs text-slate-500">Score {signal.signal_score.toFixed(1)} / 10</div>
                               </div>
                             </div>
                           </Link>
@@ -451,7 +451,7 @@ export function DashboardPage() {
               <div className="space-y-4">
                 <FadeIn delay={0.08} className="luna-shell rounded-[34px] p-6">
                   <p className="text-sm text-slate-400">Market overview</p>
-                  <h2 className="mt-2 text-2xl font-medium text-white">Highest-liquidity binary contracts</h2>
+                  <h2 className="luna-heading mt-2 text-2xl text-white">Highest-liquidity binary contracts</h2>
                   <div className="mt-6 space-y-3">
                     {(snapshot?.markets ?? [])
                       .slice()
@@ -461,12 +461,12 @@ export function DashboardPage() {
                         <div key={market.id} className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="line-clamp-2 text-sm font-medium text-white">{market.question}</p>
-                              <p className="mt-2 text-xs text-slate-500">{market.category ?? "General"} • {formatCompactNumber(market.openInterest)} OI</p>
+                              <p className="luna-heading line-clamp-2 text-sm text-white">{market.question}</p>
+                              <p className="mt-2 text-xs text-slate-500">{market.category ?? "General"} • <span className="data-number">{formatCompactNumber(market.openInterest)}</span> OI</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm text-white">{formatPercent(market.marketProbability)}</p>
-                              <p className="mt-2 text-xs text-slate-500">{formatCompactNumber(market.volume24hr)} 24h vol</p>
+                              <p className="data-number text-sm text-white">{formatPercent(market.marketProbability)}</p>
+                              <p className="mt-2 text-xs text-slate-500"><span className="data-number">{formatCompactNumber(market.volume24hr)}</span> 24h vol</p>
                             </div>
                           </div>
                         </div>
@@ -476,11 +476,11 @@ export function DashboardPage() {
 
                 <FadeIn delay={0.12} className="luna-shell rounded-[34px] p-6">
                   <p className="text-sm text-slate-400">Operator tape</p>
-                  <h2 className="mt-2 text-2xl font-medium text-white">Fresh rationale highlights</h2>
+                  <h2 className="luna-heading mt-2 text-2xl text-white">Fresh rationale highlights</h2>
                   <div className="mt-6 space-y-3">
                     {(snapshot?.signals ?? []).slice(0, 4).map((item) => (
                       <div key={item.marketId} className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4">
-                        <p className="text-sm font-medium text-white">{item.question}</p>
+                        <p className="luna-heading text-sm text-white">{item.question}</p>
                         <p className="mt-2 text-sm leading-6 text-slate-400">
                           {item.publishedSignal?.rationale ?? "Analyst rationale is being refreshed."}
                         </p>

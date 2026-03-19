@@ -34,6 +34,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   font-family: var(--font-inter), sans-serif;
+  font-weight: 400;
   background:
     radial-gradient(circle at top, rgba(99, 102, 241, 0.18), transparent 24%),
     radial-gradient(circle at 16% 18%, rgba(0, 229, 255, 0.1), transparent 26%),
@@ -133,6 +134,17 @@ input {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.luna-heading {
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+
+.data-number {
+  font-family: var(--font-data), ui-monospace, monospace;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+  letter-spacing: -0.035em;
 }
 
 .luna-grid-mask {

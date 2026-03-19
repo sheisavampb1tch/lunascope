@@ -144,7 +144,7 @@ export function LandingPage() {
                 Live binary market intelligence, refreshed every 5 minutes
               </div>
 
-              <h1 className="max-w-4xl text-[3.4rem] font-semibold leading-[0.96] tracking-[-0.06em] text-white md:text-[5.5rem]">
+              <h1 className="luna-heading max-w-4xl text-[3.4rem] leading-[0.96] text-white md:text-[5.5rem]">
                 Institutional-grade
                 <span className="block text-gradient">signal flow for Polymarket.</span>
               </h1>
@@ -192,7 +192,7 @@ export function LandingPage() {
                   <div className="flex items-center justify-between border-b border-white/6 pb-4">
                     <div>
                       <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Private operator terminal</p>
-                      <h2 className="mt-2 text-xl font-medium text-white">Signal command deck</h2>
+                      <h2 className="luna-heading mt-2 text-xl text-white">Signal command deck</h2>
                     </div>
                     <div className="flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-xs text-slate-300">
                       <SearchIcon className="h-3.5 w-3.5" />
@@ -206,7 +206,7 @@ export function LandingPage() {
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="text-sm text-slate-400">Lead signal</p>
-                            <h3 className="mt-3 text-2xl font-medium leading-tight text-white">
+                            <h3 className="luna-heading mt-3 text-2xl leading-tight text-white">
                               {topSignal?.title ?? "Loading live AI signal flow"}
                             </h3>
                           </div>
@@ -225,7 +225,7 @@ export function LandingPage() {
                           ].map(([label, value]) => (
                             <div key={label} className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-3">
                               <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p>
-                              <p className="mt-2 text-lg font-medium text-white">{value}</p>
+                              <p className="data-number mt-2 text-lg font-medium text-white">{value}</p>
                             </div>
                           ))}
                         </div>
@@ -254,7 +254,7 @@ export function LandingPage() {
                                   </div>
                                   <p className="mt-4 line-clamp-2 text-sm font-medium leading-6 text-white">{liveSignal.title}</p>
                                   <p className="mt-4 text-xs text-slate-500">Signal score</p>
-                                  <p className="mt-1 text-2xl font-semibold tracking-[-0.05em] text-white">{liveSignal.signal_score.toFixed(1)}</p>
+                                  <p className="data-number mt-1 text-2xl font-semibold text-white">{liveSignal.signal_score.toFixed(1)}</p>
                                 </>
                               ) : (
                                 <div className="h-[124px] animate-pulse rounded-[20px] bg-white/[0.03]" />
@@ -268,7 +268,7 @@ export function LandingPage() {
                     <div className="space-y-4">
                       <div className="rounded-[28px] border border-white/6 bg-white/[0.03] p-5">
                         <p className="text-sm text-slate-400">Access status</p>
-                        <p className="mt-4 text-2xl font-medium text-white">
+                        <p className="data-number mt-4 text-2xl font-medium text-white">
                           {loadingSession ? "Checking session" : session?.authenticated ? shortenAddress(session.walletAddress) : "Guest mode"}
                         </p>
                         <p className="mt-2 text-sm text-slate-400">
@@ -313,7 +313,7 @@ export function LandingPage() {
               <div className="mb-8 inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/16 bg-cyan-300/10 text-cyan-200">
                 <SparkIcon className="h-5 w-5" />
               </div>
-              <h3 className="text-2xl font-medium tracking-[-0.04em] text-white">{section.title}</h3>
+              <h3 className="luna-heading text-2xl text-white">{section.title}</h3>
               <p className="mt-4 text-sm leading-7 text-slate-400">{section.copy}</p>
             </FadeIn>
           ))}
@@ -322,7 +322,7 @@ export function LandingPage() {
         <section id="access" className="grid gap-8 border-t border-white/6 py-16 lg:grid-cols-[0.86fr_1.14fr]">
           <FadeIn>
             <p className="text-sm uppercase tracking-[0.3em] text-cyan-200/80">Private access</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-0.05em] text-white md:text-5xl">
+            <h2 className="luna-heading mt-4 max-w-xl text-4xl text-white md:text-5xl">
               Same LunaScope signal core, wrapped in a calmer and cleaner operator shell.
             </h2>
           </FadeIn>
@@ -335,7 +335,7 @@ export function LandingPage() {
               ["Wallet-ready shell", "The front-end redesign now sits on top of the real auth and access backend instead of a fake gate."],
             ].map(([title, copy]) => (
               <div key={title} className="luna-surface rounded-[28px] p-6">
-                <p className="text-lg font-medium text-white">{title}</p>
+                <p className="luna-heading text-lg text-white">{title}</p>
                 <p className="mt-3 text-sm leading-7 text-slate-400">{copy}</p>
               </div>
             ))}
@@ -361,7 +361,7 @@ export function LandingPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Access terminal</p>
-                  <h3 className="mt-3 text-3xl font-medium tracking-[-0.05em] text-white">Connect your wallet and unlock private signals</h3>
+                  <h3 className="luna-heading mt-3 text-3xl text-white">Connect your wallet and unlock private signals</h3>
                 </div>
                 <button onClick={() => setGateOpen(false)} className="luna-button-secondary px-3 py-2 text-sm">
                   Close

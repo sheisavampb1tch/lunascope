@@ -208,7 +208,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
         <div className="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-10">
           <div className="luna-shell w-full rounded-[34px] p-8 text-center">
             <p className="text-sm uppercase tracking-[0.28em] text-slate-500">Signal unavailable</p>
-            <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white">This market detail could not be loaded.</h1>
+            <h1 className="luna-heading mt-4 text-4xl text-white">This market detail could not be loaded.</h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-8 text-slate-400">
               {error ?? "The signal is missing or the detail endpoint returned an incomplete record."}
             </p>
@@ -283,7 +283,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                     </span>
                   </div>
 
-                  <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-[1.02] tracking-[-0.055em] text-white md:text-5xl">
+                  <h1 className="luna-heading mt-5 max-w-4xl text-4xl leading-[1.02] text-white md:text-5xl">
                     {published.title}
                   </h1>
                   <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
@@ -293,7 +293,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
 
                 <div className="rounded-[26px] border border-white/8 bg-white/[0.03] px-5 py-4 text-right">
                   <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Signal score</p>
-                  <p className="mt-3 text-4xl font-semibold tracking-[-0.06em] text-white">
+                  <p className="data-number mt-3 text-4xl font-semibold text-white">
                     {published.signal_score.toFixed(1)}
                   </p>
                   <p className="mt-2 text-sm text-slate-500">
@@ -311,7 +311,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-[24px] border border-white/6 bg-white/[0.03] px-4 py-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p>
-                    <p className="mt-3 text-lg font-medium leading-7 text-white">{value}</p>
+                    <p className="data-number mt-3 text-lg font-medium leading-7 text-white">{value}</p>
                   </div>
                 ))}
               </div>
@@ -321,9 +321,9 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-sm text-slate-400">Price action</p>
-                  <h2 className="mt-2 text-2xl font-medium text-white">Live YES token chart from Polymarket</h2>
+                  <h2 className="luna-heading mt-2 text-2xl text-white">Live YES token chart from Polymarket</h2>
                 </div>
-                <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-slate-300">
+                <div className="data-number rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-slate-300">
                   {yesToken?.price !== null && yesToken?.price !== undefined
                     ? `YES ${formatPercent(yesToken.price)}`
                     : "Live contract"}
@@ -346,7 +346,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p>
-                    <p className="mt-3 text-lg font-medium text-white">{value}</p>
+                    <p className="data-number mt-3 text-lg font-medium text-white">{value}</p>
                   </div>
                 ))}
               </div>
@@ -355,7 +355,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
             <div className="grid gap-4 lg:grid-cols-[0.94fr_1.06fr]">
               <FadeIn delay={0.1} className="luna-shell rounded-[34px] p-6">
                 <p className="text-sm text-slate-400">Why the model likes this trade</p>
-                <h2 className="mt-2 text-2xl font-medium text-white">Rationale layers</h2>
+                <h2 className="luna-heading mt-2 text-2xl text-white">Rationale layers</h2>
                 <div className="mt-6 space-y-3">
                   {detail.signal.reasons.length > 0 ? (
                     detail.signal.reasons.map((reason, index) => (
@@ -380,7 +380,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm text-slate-400">News and catalyst context</p>
-                    <h2 className="mt-2 text-2xl font-medium text-white">Source pack</h2>
+                    <h2 className="luna-heading mt-2 text-2xl text-white">Source pack</h2>
                   </div>
                   <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400">
                     {detail.signal.research?.usedGroqWebSearch ? "Web search active" : "News ingest active"}
@@ -433,7 +433,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.26em] text-slate-500">AI execution card</p>
-                    <p className="mt-3 text-3xl font-semibold tracking-[-0.06em] text-white">{published.analysis.side}</p>
+                    <p className="luna-heading mt-3 text-3xl text-white">{published.analysis.side}</p>
                   </div>
                   <div className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${confidenceTone(published.confidence)}`}>
                     {published.confidence}
@@ -448,7 +448,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                   ].map(([label, value]) => (
                     <div key={label} className="flex items-center justify-between rounded-[18px] bg-white/[0.03] px-4 py-3 text-sm">
                       <span className="text-slate-400">{label}</span>
-                      <span className="text-white">{value}</span>
+                      <span className="data-number text-white">{value}</span>
                     </div>
                   ))}
                 </div>
@@ -456,7 +456,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 <div className="mt-6">
                   <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.22em] text-slate-500">
                     <span>Model confidence</span>
-                    <span>{Math.round(detail.signal.features.confidence * 100)}%</span>
+                    <span className="data-number">{Math.round(detail.signal.features.confidence * 100)}%</span>
                   </div>
                   <div className="h-3 overflow-hidden rounded-full bg-white/[0.05]">
                     <motion.div
@@ -500,7 +500,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-center justify-between rounded-[18px] bg-white/[0.03] px-4 py-3 text-sm">
                     <span className="text-slate-400">{label}</span>
-                    <span className="text-white">{value}</span>
+                    <span className="data-number text-white">{value}</span>
                   </div>
                 ))}
               </div>
@@ -510,7 +510,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm text-slate-400">Feature decomposition</p>
-                  <h2 className="mt-2 text-2xl font-medium text-white">Signal internals</h2>
+                  <h2 className="luna-heading mt-2 text-2xl text-white">Signal internals</h2>
                 </div>
                 <button
                   onClick={() => {
@@ -534,7 +534,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                   <div key={label}>
                     <div className="mb-2 flex items-center justify-between text-sm">
                       <span className="text-slate-400">{label}</span>
-                      <span className="text-white">{Math.round(Number(value) * 100)}%</span>
+                      <span className="data-number text-white">{Math.round(Number(value) * 100)}%</span>
                     </div>
                     <div className="h-2.5 overflow-hidden rounded-full bg-white/[0.05]">
                       <motion.div
@@ -555,7 +555,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 <SparkIcon className="h-5 w-5 text-cyan-200" />
                 <div>
                   <p className="text-sm text-slate-400">Related signal flow</p>
-                  <h2 className="mt-1 text-2xl font-medium text-white">What else is moving</h2>
+                  <h2 className="luna-heading mt-1 text-2xl text-white">What else is moving</h2>
                 </div>
               </div>
 
@@ -569,12 +569,12 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="max-w-[18rem]">
-                          <p className="line-clamp-2 text-sm font-medium leading-6 text-white">{signal.title}</p>
+                          <p className="luna-heading line-clamp-2 text-sm leading-6 text-white">{signal.title}</p>
                           <p className="mt-2 text-xs text-slate-500">
                             {signal.analysis.side} • {signal.confidence}
                           </p>
                         </div>
-                        <span className="text-sm text-cyan-200">{signal.signal_score.toFixed(1)}</span>
+                        <span className="data-number text-sm text-cyan-200">{signal.signal_score.toFixed(1)}</span>
                       </div>
                     </Link>
                   ))
