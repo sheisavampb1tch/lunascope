@@ -21,6 +21,15 @@ export const metadata: Metadata = {
   title: "Lunascope | AI Edge for Polymarket",
   description:
     "Premium non-custodial trading intelligence for Polymarket with mispricing detection, copy-trading signals, and real-time edge monitoring.",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+    ],
+    shortcut: ["/icon.png"],
+    apple: [
+      { url: "/icon.png", type: "image/png" },
+    ],
+  },
   openGraph: {
     title: "Lunascope | AI Edge for Polymarket",
     description:
