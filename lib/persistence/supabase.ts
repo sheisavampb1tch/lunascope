@@ -1,4 +1,4 @@
-import type { MarketSnapshot, NeuralSignal, NormalizedMarket } from "@/lib/markets/types";
+import type { MarketSnapshot, NeuralSignal, NormalizedMarket, PublishedAnalystSignal } from "@/lib/markets/types";
 
 const SIGNAL_DEDUPE_WINDOW_MINUTES = 15;
 
@@ -61,7 +61,7 @@ function signalRow(signal: NeuralSignal) {
     market_id: signal.marketId,
     signal: signal.signal,
     side: signal.side,
-    priority: signal.priority,
+    priority: signal.publishedSignal ? signal.publishedSignal.signal_score * 10 : signal.priority,
     confidence: signal.features.confidence,
     edge: signal.features.edge,
     absolute_edge: signal.features.absoluteEdge,
@@ -89,7 +89,12 @@ async function supabaseFetch(path: string, init: RequestInit) {
     return null;
   }
 
-  return response.json();
+  const text = await response.text();
+  if (!text.trim()) {
+    return null;
+  }
+
+  return JSON.parse(text);
 }
 
 async function loadRecentSignalConditionIds(conditionIds: string[]) {
@@ -110,6 +115,24 @@ async function loadRecentSignalConditionIds(conditionIds: string[]) {
   })) as Array<{ condition_id: string }> | null;
 
   return new Set((rows ?? []).map((row) => row.condition_id));
+}
+
+export async function loadLatestSignals(limit = 12) {
+  const config = getSupabaseConfig();
+  if (!config) {
+    return [] as PublishedAnalystSignal[];
+  }
+
+  const rows = (await supabaseFetch(`/rest/v1/signals?select=payload,created_at&order=created_at.desc&limit=${limit}`, {
+    method: "GET",
+    headers: getHeaders(config.serviceRoleKey, {
+      Accept: "application/json",
+    }),
+  })) as Array<{ payload?: { publishedSignal?: PublishedAnalystSignal } }> | null;
+
+  return (rows ?? [])
+    .map((row) => row.payload?.publishedSignal)
+    .filter((signal): signal is PublishedAnalystSignal => Boolean(signal));
 }
 
 export async function persistSnapshot(snapshot: MarketSnapshot) {

@@ -1,12 +1,15 @@
 import { createCachedJsonFetcher } from "@/lib/cache";
 import { DefaultNeuralScorer, scoreMarkets } from "@/lib/ai/scoring-service";
+import { analyzeSignalsWithGroq } from "@/lib/ai/providers/groq";
 import { persistSnapshot } from "@/lib/persistence/supabase";
 import { normalizeMarket } from "@/lib/markets/normalizer";
 import { getOpenInterest, listActiveMarkets } from "@/lib/markets/polymarket-client";
 import type { MarketSnapshot, NormalizedMarket } from "@/lib/markets/types";
+import { fetchNewsResearch } from "@/lib/research/news";
 
 const DEFAULT_LIMIT = 60;
 const CACHE_TTL_SECONDS = 20;
+const AI_ANALYST_MARKET_LIMIT = 6;
 
 function buildCacheKey(limit: number) {
   return ["lunascope-polymarket-snapshot", String(limit)];
@@ -33,7 +36,10 @@ async function enrichMarkets(limit: number) {
 
 async function buildSnapshot(limit: number): Promise<MarketSnapshot> {
   const markets = await enrichMarkets(limit);
-  const signals = scoreMarkets(markets, new DefaultNeuralScorer()).filter((signal) => signal.signal !== "WATCH");
+  const heuristicSignals = scoreMarkets(markets, new DefaultNeuralScorer()).filter((signal) => signal.signal !== "WATCH");
+  const shortlistedSignals = heuristicSignals.slice(0, AI_ANALYST_MARKET_LIMIT);
+  const research = await Promise.all(shortlistedSignals.map((signal) => fetchNewsResearch(signal)));
+  const signals = await analyzeSignalsWithGroq(shortlistedSignals, research);
 
   return {
     meta: {

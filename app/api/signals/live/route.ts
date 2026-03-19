@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTopSignals } from "@/lib/markets/snapshot-service";
+import { loadLatestSignals } from "@/lib/persistence/supabase";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -7,14 +8,21 @@ export async function GET(request: Request) {
   const clampedLimit = Math.min(Math.max(limit, 1), 50);
 
   try {
-    const signals = await getTopSignals(clampedLimit);
+    const persistedSignals = await loadLatestSignals(clampedLimit);
+    const fallbackSignals = persistedSignals.length > 0
+      ? []
+      : (await getTopSignals(clampedLimit))
+          .map((signal) => signal.publishedSignal)
+          .filter((signal) => Boolean(signal));
+
+    const signals = persistedSignals.length > 0 ? persistedSignals : fallbackSignals;
     return NextResponse.json(
       {
         meta: {
           generatedAt: new Date().toISOString(),
           signalCount: signals.length,
           source: "polymarket",
-          scorer: signals[0]?.scorer ?? "lunascope-default-v1",
+          analyst: "groq",
         },
         signals,
       },

@@ -1,10 +1,39 @@
 export type OutcomeSide = "YES" | "NO";
+export type AnalystConfidence = "LOW" | "MEDIUM" | "HIGH";
 
 export type MarketToken = {
   id: string;
   side: OutcomeSide;
   label: string;
   price: number | null;
+};
+
+export type ResearchSource = {
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string | null;
+  kind: "news" | "social";
+};
+
+export type ResearchPack = {
+  query: string;
+  usedGroqWebSearch: boolean;
+  sources: ResearchSource[];
+};
+
+export type PublishedAnalystSignal = {
+  market_id: string;
+  title: string;
+  analysis: {
+    market_price: number;
+    ai_probability: number;
+    edge: number;
+    side: OutcomeSide;
+  };
+  rationale: string;
+  signal_score: number;
+  confidence: AnalystConfidence;
 };
 
 export type NormalizedMarket = {
@@ -69,6 +98,8 @@ export type NeuralSignal = {
   reasons: string[];
   scorer: string;
   generatedAt: string;
+  research?: ResearchPack;
+  publishedSignal?: PublishedAnalystSignal;
 };
 
 export type SnapshotMeta = {
