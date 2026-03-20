@@ -14,10 +14,11 @@ function baseProps(props: SVGProps<SVGSVGElement>) {
 
 export function LogoMark(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg {...baseProps(props)}>
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 3.5c3.3 2.1 5.5 5 5.5 8.5S15.3 18.4 12 20.5C8.7 18.4 6.5 15.5 6.5 12S8.7 5.6 12 3.5Z" />
-      <circle cx="12" cy="12" r="2.2" />
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M14.8 3.8a7.6 7.6 0 1 0 0 16a6.1 6.1 0 1 1 0-16Z" fill="currentColor" />
+      <circle cx="16.2" cy="7.2" r="1.1" fill="currentColor" />
+      <circle cx="17.2" cy="17.2" r="2.7" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M17.2 12.9v1.7M17.2 19.8v1.7M12.9 17.2h1.7M19.8 17.2h1.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

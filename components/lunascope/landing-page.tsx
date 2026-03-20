@@ -1,7 +1,45 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import type { PublishedAnalystSignal } from '@/lib/markets/types'
+import { LogoMark } from './icons'
+import { useWalletAuth } from './use-wallet-auth'
+import { WalletConnectModal } from './wallet-connect-modal'
 
-const SIGNALS = [
+type FeedSignal = {
+  market: string
+  marketProb: number
+  aiProb: number
+  edge: string
+  edgeVal: number
+  conviction: number
+  rationale: string
+  catalyst: string
+  hours: number
+  tag: string
+  hot: boolean
+}
+
+type LiveSignalsResponse = {
+  meta?: {
+    signalCount?: number
+  }
+  signals?: PublishedAnalystSignal[]
+}
+
+type SnapshotMarket = {
+  id: string
+  category: string | null
+  endDate: string | null
+}
+
+type SnapshotResponse = {
+  meta?: {
+    marketCount?: number
+  }
+  markets?: SnapshotMarket[]
+}
+
+const FALLBACK_SIGNALS: FeedSignal[] = [
   {
     market: 'Will Fed cut rates in May 2026?',
     marketProb: 34,
@@ -56,7 +94,67 @@ const SIGNALS = [
   },
 ]
 
-function SignalCard({ s, i, locked }: { s: typeof SIGNALS[0]; i: number; locked?: boolean }) {
+const DEFAULT_MARKET_COUNT = 247
+const FEED_PREVIEW_COUNT = 2
+const AUTO_REFRESH_MS = 60_000
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function toPercent(value: number) {
+  return Math.round(clamp(value, 0, 1) * 100)
+}
+
+function formatSignedPercent(value: number) {
+  const rounded = Math.round(value)
+  return `${rounded >= 0 ? '+' : ''}${rounded}%`
+}
+
+function getTag(category: string | null | undefined) {
+  if (!category) return 'LIVE'
+  return category.replace(/[_-]+/g, ' ').trim().slice(0, 10).toUpperCase()
+}
+
+function getHoursToCatalyst(endDate: string | null | undefined) {
+  if (!endDate) return 24
+
+  const hours = Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60))
+  if (!Number.isFinite(hours)) return 24
+
+  return clamp(hours, 1, 999)
+}
+
+function getConviction(signal: PublishedAnalystSignal) {
+  return clamp(Math.round(signal.signal_score * 10), 50, 99)
+}
+
+function mapLiveSignals(signals: PublishedAnalystSignal[], marketsById: Map<string, SnapshotMarket>) {
+  return signals.map((signal) => {
+    const market = marketsById.get(signal.market_id)
+    const marketProb = toPercent(signal.analysis.market_price)
+    const aiProb = toPercent(signal.analysis.ai_probability)
+    const directionalEdge = signal.analysis.side === 'NO'
+      ? -Math.round(signal.analysis.edge * 100)
+      : Math.round(signal.analysis.edge * 100)
+
+    return {
+      market: signal.title,
+      marketProb,
+      aiProb,
+      edge: formatSignedPercent(directionalEdge),
+      edgeVal: directionalEdge,
+      conviction: getConviction(signal),
+      rationale: signal.rationale,
+      catalyst: market?.category ?? 'Live market',
+      hours: getHoursToCatalyst(market?.endDate),
+      tag: getTag(market?.category),
+      hot: Math.abs(directionalEdge) >= 15 || signal.confidence === 'HIGH',
+    } satisfies FeedSignal
+  })
+}
+
+function SignalCard({ s, i, locked }: { s: FeedSignal; i: number; locked?: boolean }) {
   const isPos = s.edgeVal > 0
   return (
     <div style={{
@@ -123,11 +221,79 @@ function SignalCard({ s, i, locked }: { s: typeof SIGNALS[0]; i: number; locked?
 }
 
 export function LandingPage() {
-  const [tick, setTick] = useState(0)
+  const [signals, setSignals] = useState<FeedSignal[]>(FALLBACK_SIGNALS)
+  const [marketCount, setMarketCount] = useState(DEFAULT_MARKET_COUNT)
+  const [walletModalOpen, setWalletModalOpen] = useState(false)
+  const {
+    wallets,
+    session,
+    displayWalletAddress,
+    connectWallet,
+    redeemInvite,
+    disconnectWallet,
+  } = useWalletAuth()
+
   useEffect(() => {
-    const t = setInterval(() => setTick(v => v + 1), 3000)
-    return () => clearInterval(t)
+    let isMounted = true
+
+    const refreshSignals = async () => {
+      try {
+        const [signalsResponse, snapshotResponse] = await Promise.allSettled([
+          fetch('/api/signals/live?limit=6', { cache: 'no-store' }),
+          fetch('/api/markets/snapshot?limit=60', { cache: 'no-store' }),
+        ])
+
+        const marketsById = new Map<string, SnapshotMarket>()
+
+        if (snapshotResponse.status === 'fulfilled' && snapshotResponse.value.ok) {
+          const snapshot = await snapshotResponse.value.json() as SnapshotResponse
+          for (const market of snapshot.markets ?? []) {
+            marketsById.set(market.id, market)
+          }
+
+          if (isMounted && typeof snapshot.meta?.marketCount === 'number') {
+            setMarketCount(snapshot.meta.marketCount)
+          }
+        }
+
+        if (signalsResponse.status === 'fulfilled' && signalsResponse.value.ok) {
+          const payload = await signalsResponse.value.json() as LiveSignalsResponse
+          const nextSignals = mapLiveSignals(payload.signals ?? [], marketsById)
+
+          if (isMounted && nextSignals.length > 0) {
+            setSignals(nextSignals)
+          }
+        }
+      } catch {
+        // Keep the fallback signal feed visible if live APIs are temporarily unavailable.
+      }
+    }
+
+    refreshSignals()
+    const interval = setInterval(refreshSignals, AUTO_REFRESH_MS)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
   }, [])
+
+  const averageEdge = Math.round(
+    signals.reduce((total, signal) => total + Math.abs(signal.edgeVal), 0) / Math.max(signals.length, 1),
+  )
+  const hiddenSignalCount = Math.max(signals.length - FEED_PREVIEW_COUNT, 0)
+  const accessUnlocked = session.authenticated && session.access.hasAccess
+  const visibleSignals = accessUnlocked ? signals : signals.slice(0, FEED_PREVIEW_COUNT)
+  const connectLabel = session.loadingSession
+    ? 'Loading...'
+    : session.authenticated
+      ? displayWalletAddress
+      : 'Connect wallet'
+  const primaryHeroLabel = accessUnlocked
+    ? 'Operator access active'
+    : session.authenticated
+      ? 'Unlock access'
+      : 'Connect wallet'
 
   return (
     <>
@@ -426,7 +592,9 @@ export function LandingPage() {
       {/* NAV */}
       <nav className="nav">
         <a href="/" className="nav-logo">
-          <div className="nav-logo-icon">🌙</div>
+          <div className="nav-logo-icon">
+            <LogoMark style={{ width: 16, height: 16 }} />
+          </div>
           lunascope
         </a>
         <div className="nav-links">
@@ -434,13 +602,13 @@ export function LandingPage() {
           <a href="#how" className="nav-link">How it works</a>
           <a href="#access" className="nav-link">Access</a>
         </div>
-        <button className="nav-cta">Connect wallet</button>
+        <button className="nav-cta" onClick={() => setWalletModalOpen(true)}>{connectLabel}</button>
       </nav>
 
       {/* TICKER */}
       <div className="ticker">
         <div className="ticker-inner">
-          {[...Array(2)].flatMap(() => SIGNALS).map((s, i) => (
+          {[...Array(2)].flatMap(() => signals).map((s, i) => (
             <div key={i} className="ticker-item">
               <span style={{ color: s.edgeVal > 0 ? '#7EB8FF' : '#f87171', fontWeight: 700 }}>{s.edge}</span>
               <span>{s.market.slice(0, 45)}...</span>
@@ -470,14 +638,14 @@ export function LandingPage() {
             </p>
 
             <div className="hero-actions">
-              <button className="btn-primary">Connect wallet</button>
-              <button className="btn-outline">View signals ↓</button>
+              <button className="btn-primary" onClick={() => setWalletModalOpen(true)}>{primaryHeroLabel}</button>
+              <button className="btn-outline" onClick={() => document.getElementById('signals')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>View signals ↓</button>
             </div>
 
             <div className="hero-stats">
               {[
-                { val: '247+', label: 'Markets scanned daily' },
-                { val: 'avg 18%', label: 'Edge identified' },
+                { val: `${marketCount}+`, label: 'Markets scanned daily' },
+                { val: `avg ${averageEdge}%`, label: 'Edge identified' },
                 { val: '5 min', label: 'Refresh cycle' },
               ].map((s, i) => (
                 <div key={i}>
@@ -498,10 +666,22 @@ export function LandingPage() {
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {SIGNALS.slice(0, 2).map((s, i) => <SignalCard key={i} s={s} i={i} />)}
-              <div className="locked-overlay">
-                🔒 {SIGNALS.length - 2} more signals · Connect wallet to unlock
-              </div>
+              {visibleSignals.map((s, i) => <SignalCard key={`${s.market}-${i}`} s={s} i={i} />)}
+              {accessUnlocked ? (
+                <div className="locked-overlay" style={{ justifyContent: 'space-between' }}>
+                  <span>✓ Operator session active · full feed unlocked</span>
+                  <a href="/dashboard" style={{ color: '#7EB8FF', textDecoration: 'none', fontWeight: 600 }}>Open dashboard</a>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="locked-overlay"
+                  onClick={() => setWalletModalOpen(true)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  🔒 {hiddenSignalCount > 0 ? `${hiddenSignalCount} more signals · ` : ''}{session.authenticated ? 'Enter invite to unlock' : 'Connect wallet to unlock'}
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -550,7 +730,7 @@ export function LandingPage() {
                 <div key={f} className="access-item dim"><span className="check" style={{ color: 'rgba(255,255,255,0.15)' }}>✗</span>{f}</div>
               ))}
             </div>
-            <button className="btn-outline" style={{ width: '100%', padding: '10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>View signals</button>
+            <button className="btn-outline" style={{ width: '100%', padding: '10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} onClick={() => document.getElementById('signals')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>View signals</button>
           </div>
 
           <div className="access-card featured">
@@ -562,7 +742,9 @@ export function LandingPage() {
                 <div key={f} className="access-item"><span className="check" style={{ color: '#7EB8FF' }}>✓</span>{f}</div>
               ))}
             </div>
-            <button className="btn-primary" style={{ width: '100%', padding: '10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>Connect wallet</button>
+            <button className="btn-primary" style={{ width: '100%', padding: '10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} onClick={() => setWalletModalOpen(true)}>
+              {accessUnlocked ? 'Operator access active' : session.authenticated ? 'Redeem invite access' : 'Connect wallet'}
+            </button>
           </div>
         </div>
 
@@ -574,6 +756,17 @@ export function LandingPage() {
           <span>See what moves the market first.</span>
         </footer>
       </div>
+
+      <WalletConnectModal
+        open={walletModalOpen}
+        onClose={() => setWalletModalOpen(false)}
+        wallets={wallets}
+        session={session}
+        displayWalletAddress={displayWalletAddress}
+        onConnect={connectWallet}
+        onRedeem={redeemInvite}
+        onDisconnect={disconnectWallet}
+      />
     </>
   )
 }
