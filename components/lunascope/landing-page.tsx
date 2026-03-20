@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { ArrowUpRightIcon, ChevronRightIcon, LockIcon, LogoMark, SearchIcon, SparkIcon, WalletIcon } from "./icons";
-import { formatPercent, formatSignedPercent, shortenAddress } from "./format";
-import { FadeIn } from "./motion";
+import { useEffect, useMemo, useState } from "react";
+import { LockIcon, WalletIcon } from "./icons";
+import { convictionFromSignal, formatCategoryTag, formatHoursUntil, formatSignedPercent, shortenAddress } from "./format";
+import { SignalCard } from "./signal-card";
+import { TopChrome } from "./top-chrome";
 import { useWalletAuth } from "./use-wallet-auth";
 
 type LiveSignal = {
@@ -22,23 +23,55 @@ type LiveSignal = {
   confidence: "LOW" | "MEDIUM" | "HIGH";
 };
 
-const signalSections = [
+type SnapshotMarket = {
+  id: string;
+  category: string | null;
+  endDate: string | null;
+};
+
+type SnapshotResponse = {
+  meta: {
+    marketCount: number;
+  };
+  markets: SnapshotMarket[];
+};
+
+const featureItems = [
   {
-    title: "AI Mispricing Engine",
-    copy: "Binary Polymarket contracts are scored for narrative lag, liquidity quality, and directional edge before they hit the dashboard.",
+    num: "01",
+    title: "Live Market Scan",
+    desc: "Pulls active Polymarket binary events, prioritises liquidity, and keeps the surface focused on contracts worth tracking.",
   },
   {
-    title: "Catalyst Analyst",
-    copy: "News-backed AI rationale turns raw pricing dislocation into a trader-grade explanation you can actually act on.",
+    num: "02",
+    title: "AI Mispricing Detection",
+    desc: "Groq-backed analyst flow compares live market pricing with catalyst context and narrative drift.",
   },
   {
-    title: "Wallet-Gated Alpha",
-    copy: "Access is tied to real wallet identity and invite logic, so premium flow stays curated while the product scales.",
+    num: "03",
+    title: "Edge Score",
+    desc: "The spread between crowd pricing and LunaScope probability is expressed as a single clean number.",
+  },
+  {
+    num: "04",
+    title: "Time-to-Catalyst",
+    desc: "Every surfaced market carries urgency so operators know which catalysts are near enough to matter.",
+  },
+  {
+    num: "05",
+    title: "Conviction Score",
+    desc: "Signals stay ranked by conviction, so weak ideas do not pollute the feed or waste attention.",
+  },
+  {
+    num: "06",
+    title: "Wallet-Gated Access",
+    desc: "Private flow sits behind wallet auth and invite access, not email gates or noisy sign-up walls.",
   },
 ];
 
 export function LandingPage() {
   const [signals, setSignals] = useState<LiveSignal[]>([]);
+  const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
   const [loadingSignals, setLoadingSignals] = useState(true);
   const [gateOpen, setGateOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
@@ -56,13 +89,20 @@ export function LandingPage() {
   useEffect(() => {
     let active = true;
 
-    async function loadSignals() {
+    async function loadData() {
       try {
-        const response = await fetch("/api/signals/live?limit=4", { cache: "no-store" });
-        const json = (await response.json()) as { signals?: LiveSignal[] };
-        if (active) {
-          setSignals(json.signals ?? []);
-        }
+        const [signalsResponse, snapshotResponse] = await Promise.all([
+          fetch("/api/signals/live?limit=6", { cache: "no-store" }),
+          fetch("/api/markets/snapshot?limit=40", { cache: "no-store" }),
+        ]);
+
+        const signalsJson = (await signalsResponse.json()) as { signals?: LiveSignal[] };
+        const snapshotJson = (await snapshotResponse.json()) as SnapshotResponse;
+
+        if (!active) return;
+
+        setSignals(signalsJson.signals ?? []);
+        setSnapshot(snapshotJson);
       } finally {
         if (active) {
           setLoadingSignals(false);
@@ -70,14 +110,43 @@ export function LandingPage() {
       }
     }
 
-    void loadSignals();
+    void loadData();
     return () => {
       active = false;
     };
   }, []);
 
+  const marketMap = useMemo(() => {
+    const map = new Map<string, SnapshotMarket>();
+    for (const market of snapshot?.markets ?? []) {
+      map.set(market.id, market);
+    }
+    return map;
+  }, [snapshot]);
+
+  const averageEdge = signals.length
+    ? Math.round((signals.reduce((sum, signal) => sum + Math.abs(signal.analysis.edge), 0) / signals.length) * 100)
+    : 0;
+
+  const tickerItems = signals.length > 0
+    ? signals.map((signal) => ({
+        id: signal.market_id,
+        edgeLabel: formatSignedPercent(signal.analysis.edge, 0),
+        label: `${signal.title.slice(0, 45)}${signal.title.length > 45 ? "..." : ""}`,
+        positive: signal.analysis.edge >= 0,
+      }))
+    : [
+        {
+          id: "loading",
+          label: "Loading live signal flow...",
+          edgeLabel: "+0%",
+          positive: true,
+        },
+      ];
+
   async function handleConnect() {
     try {
+      setError(null);
       await connectInjectedWallet();
     } catch {
       return;
@@ -94,253 +163,240 @@ export function LandingPage() {
     }
   }
 
-  const topSignal = signals[0];
-
   return (
-    <main className="cosmic-shell relative overflow-hidden">
-      <div className="luna-grid-mask absolute inset-0" />
-      <div className="beam absolute left-[10%] top-[120px] h-[480px] w-[120px] rotate-[28deg] rounded-full bg-cyan-300/35 blur-[110px]" />
-      <div className="beam absolute right-[14%] top-[120px] h-[520px] w-[140px] -rotate-[28deg] rounded-full bg-indigo-300/40 blur-[120px]" />
-      <div className="beam absolute left-1/2 top-[420px] h-[360px] w-[220px] -translate-x-1/2 rounded-full bg-cyan-400/12 blur-[150px]" />
+    <main className="cosmic-shell">
+      <TopChrome
+        links={[
+          { label: "Signals", href: "#signals" },
+          { label: "How it works", href: "#how" },
+          { label: "Access", href: "#access" },
+        ]}
+        tickerItems={tickerItems}
+        rightSlot={(
+          <button className="luna-button" onClick={() => setGateOpen(true)}>
+            {session?.authenticated ? "Manage access" : "Connect wallet"}
+          </button>
+        )}
+      />
 
-      <div className="mx-auto max-w-7xl px-6 pb-20 pt-6 md:px-8">
-        <motion.header
-          initial={{ opacity: 0, y: -18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-          className="luna-shell sticky top-4 z-30 flex items-center justify-between gap-6 rounded-full px-5 py-3"
-        >
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/8 text-cyan-200">
-              <LogoMark className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.34em] text-slate-500">Lunascope</p>
-              <p className="text-sm text-slate-100">AI Edge for Polymarket</p>
-            </div>
-          </Link>
+      <div className="luna-page">
+        <section id="signals" className="luna-container grid gap-12 py-[72px] md:grid-cols-[1fr_420px] md:gap-20 md:py-20">
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mb-5 inline-flex items-center gap-2 rounded-[20px] border border-[#7EB8FF]/15 bg-[#7EB8FF]/[0.07] px-3 py-1.5 text-[11px] font-semibold tracking-[0.06em] text-[#7EB8FF]"
+            >
+              <span className="live-dot" />
+              LIVE · REFRESHED EVERY 5 MINUTES
+            </motion.div>
 
-          <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-            <a href="#product" className="transition-colors duration-300 hover:text-white">Product</a>
-            <a href="#dashboard" className="transition-colors duration-300 hover:text-white">Dashboard</a>
-            <a href="#access" className="transition-colors duration-300 hover:text-white">Access</a>
-          </nav>
+            <motion.h1
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="luna-heading mb-4 text-[clamp(34px,4vw,52px)] leading-[1.04]"
+            >
+              Find the edge
+              <br />
+              <span className="text-white/30">before the</span>
+              <br />
+              market does.
+            </motion.h1>
 
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="luna-button-secondary px-4 py-2 text-sm">
-              Live terminal
-            </Link>
-            <button onClick={() => setGateOpen(true)} className="luna-button px-4 py-2 text-sm">
-              Connect wallet
-            </button>
-          </div>
-        </motion.header>
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="mb-8 max-w-[430px] text-[15px] leading-[1.65] text-white/40"
+            >
+              LunaScope scans Polymarket around the clock. When the crowd misprices an event, you see the spread, the rationale, and the catalyst urgency in one cleaner terminal.
+            </motion.p>
 
-        <section className="relative pt-16 md:pt-20">
-          <div className="grid items-start gap-12 lg:grid-cols-[1.08fr_0.92fr]">
-            <FadeIn className="max-w-3xl">
-              <div className="mb-8 inline-flex items-center gap-3 rounded-full border border-cyan-300/18 bg-cyan-300/8 px-4 py-2 text-sm text-cyan-100">
-                <span className="live-pulse inline-flex h-2 w-2 rounded-full bg-cyan-300" />
-                Live binary market intelligence, refreshed every 5 minutes
-              </div>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="mb-12 flex flex-wrap gap-3"
+            >
+              <button className="luna-button" onClick={() => setGateOpen(true)}>
+                {session?.access?.hasAccess ? "Operator access active" : "Connect wallet"}
+              </button>
+              <Link href="/dashboard" className="luna-button-secondary">
+                View live desk
+              </Link>
+            </motion.div>
 
-              <h1 className="luna-heading max-w-4xl text-[3.4rem] leading-[0.96] text-white md:text-[5.5rem]">
-                Institutional-grade
-                <span className="block text-gradient">signal flow for Polymarket.</span>
-              </h1>
-
-              <p className="mt-8 max-w-2xl text-lg leading-8 text-slate-300 md:text-xl">
-                Lunascope turns binary event markets into a luxury intelligence terminal: real-time mispricing detection, AI-backed rationale, and private wallet-gated access for serious operators.
-              </p>
-
-              <div className="mt-10 flex flex-wrap items-center gap-4">
-                <Link href="/dashboard" className="luna-button flex items-center gap-2 px-6 py-3">
-                  Open dashboard
-                  <ChevronRightIcon className="h-4 w-4" />
-                </Link>
-                <button onClick={() => setGateOpen(true)} className="luna-button-secondary px-6 py-3">
-                  Unlock private access
-                </button>
-              </div>
-
-              <div className="mt-14 grid gap-4 md:grid-cols-3">
-                {[
-                  ["Binary-only engine", "No noisy multi-outcome markets"],
-                  ["AI analyst active", "Groq-powered rationale on live signals"],
-                  ["Wallet-ready backend", "Session + invite access already live"],
-                ].map(([title, copy], index) => (
-                  <motion.div
-                    key={title}
-                    initial={{ opacity: 0, y: 18 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.4 }}
-                    transition={{ duration: 0.55, delay: index * 0.08 }}
-                    className="luna-surface premium-card rounded-[28px] p-5"
-                  >
-                    <p className="text-base font-medium text-white">{title}</p>
-                    <p className="mt-3 text-sm leading-6 text-slate-400">{copy}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={0.12}>
-              <div id="dashboard" className="luna-shell relative overflow-hidden rounded-[34px] p-4 md:p-5">
-                <div className="absolute inset-x-14 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent" />
-                <div className="absolute left-12 top-16 h-40 w-40 rounded-full bg-cyan-400/12 blur-[90px]" />
-                <div className="rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(6,9,18,0.98),rgba(7,10,19,0.92))] p-5">
-                  <div className="flex items-center justify-between border-b border-white/6 pb-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Private operator terminal</p>
-                      <h2 className="luna-heading mt-2 text-xl text-white">Signal command deck</h2>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-xs text-slate-300">
-                      <SearchIcon className="h-3.5 w-3.5" />
-                      Search markets
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                    <div className="space-y-4">
-                      <div className="rounded-[28px] border border-white/6 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.18),transparent_58%),linear-gradient(180deg,rgba(10,15,27,0.98),rgba(6,10,18,0.96))] p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-sm text-slate-400">Lead signal</p>
-                            <h3 className="luna-heading mt-3 text-2xl leading-tight text-white">
-                              {topSignal?.title ?? "Loading live AI signal flow"}
-                            </h3>
-                          </div>
-                          <div className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs text-cyan-100">
-                            {topSignal ? `${topSignal.signal_score.toFixed(1)}/10` : "Live"}
-                          </div>
-                        </div>
-                        <p className="mt-5 text-sm leading-7 text-slate-300">
-                          {topSignal?.rationale ?? "Fresh analyst rationale appears here as soon as the backend returns a live signal."}
-                        </p>
-                        <div className="mt-6 grid gap-3 md:grid-cols-3">
-                          {[
-                            ["Market", topSignal ? formatPercent(topSignal.analysis.market_price) : "--"],
-                            ["AI probability", topSignal ? formatPercent(topSignal.analysis.ai_probability) : "--"],
-                            ["Edge", topSignal ? formatSignedPercent(topSignal.analysis.edge, 1) : "--"],
-                          ].map(([label, value]) => (
-                            <div key={label} className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-3">
-                              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p>
-                              <p className="data-number mt-2 text-lg font-medium text-white">{value}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-3">
-                        {(loadingSignals ? Array.from({ length: 3 }) : signals.slice(0, 3)).map((signal, index) => {
-                          const isLiveSignal =
-                            signal !== null &&
-                            typeof signal === "object" &&
-                            "market_id" in signal;
-                          const liveSignal = isLiveSignal ? (signal as LiveSignal) : null;
-
-                          return (
-                            <div
-                              key={liveSignal ? liveSignal.market_id : `signal-skeleton-${index}`}
-                              className="premium-card rounded-[24px] border border-white/6 bg-white/[0.03] p-4"
-                            >
-                              {liveSignal ? (
-                                <>
-                                  <div className="flex items-center justify-between">
-                                    <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                                      {liveSignal.analysis.side}
-                                    </span>
-                                    <span className="text-xs text-cyan-200">{liveSignal.confidence}</span>
-                                  </div>
-                                  <p className="mt-4 line-clamp-2 text-sm font-medium leading-6 text-white">{liveSignal.title}</p>
-                                  <p className="mt-4 text-xs text-slate-500">Signal score</p>
-                                  <p className="data-number mt-1 text-2xl font-semibold text-white">{liveSignal.signal_score.toFixed(1)}</p>
-                                </>
-                              ) : (
-                                <div className="h-[124px] animate-pulse rounded-[20px] bg-white/[0.03]" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="rounded-[28px] border border-white/6 bg-white/[0.03] p-5">
-                        <p className="text-sm text-slate-400">Access status</p>
-                        <p className="data-number mt-4 text-2xl font-medium text-white">
-                          {loadingSession ? "Checking session" : session?.authenticated ? shortenAddress(session.walletAddress) : "Guest mode"}
-                        </p>
-                        <p className="mt-2 text-sm text-slate-400">
-                          {session?.access?.hasAccess ? `Tier ${session.access.tier}` : "Connect wallet and redeem invite to unlock premium flows."}
-                        </p>
-                        <button onClick={() => setGateOpen(true)} className="luna-button mt-6 w-full justify-center px-4 py-3 text-sm">
-                          {session?.authenticated ? "Manage access" : "Connect wallet"}
-                        </button>
-                      </div>
-
-                      <div className="rounded-[28px] border border-white/6 bg-white/[0.03] p-5">
-                        <div className="flex items-center gap-3 text-sm text-slate-300">
-                          <SparkIcon className="h-4 w-4 text-cyan-200" />
-                          Analyst workflow
-                        </div>
-                        <div className="mt-5 space-y-4">
-                          {[
-                            "Polymarket binary markets are normalized and scored.",
-                            "Groq analyst produces rationale and directional conviction.",
-                            "Signals are persisted and delivered to the terminal layer.",
-                          ].map((item, index) => (
-                            <div key={item} className="flex gap-3">
-                              <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 text-[11px] text-cyan-100">
-                                0{index + 1}
-                              </div>
-                              <p className="text-sm leading-6 text-slate-400">{item}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="grid gap-6 border-t border-[#7EB8FF]/10 pt-8 sm:grid-cols-3"
+            >
+              {[
+                { val: `${snapshot?.meta.marketCount ?? 0}+`, label: "Markets scanned" },
+                { val: averageEdge ? `avg ${averageEdge}%` : "avg --", label: "Edge identified" },
+                { val: "5 min", label: "Refresh cycle" },
+              ].map((item) => (
+                <div key={item.label}>
+                  <div className="data-number text-[22px] font-semibold text-[#7EB8FF]">{item.val}</div>
+                  <div className="mt-1 text-[12px] text-white/30">{item.label}</div>
                 </div>
+              ))}
+            </motion.div>
+          </div>
+
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[11px] font-semibold tracking-[0.07em] text-white/30">SIGNAL FEED</span>
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#7EB8FF]">
+                <span className="live-dot" />
+                LIVE
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {loadingSignals
+                ? Array.from({ length: 2 }).map((_, index) => (
+                    <div key={`landing-skeleton-${index}`} className="h-[172px] rounded-[12px] border border-white/[0.07] bg-white/[0.02] animate-pulse" />
+                  ))
+                : signals.slice(0, 2).map((signal, index) => {
+                    const market = marketMap.get(signal.market_id);
+                    return (
+                      <SignalCard
+                        key={signal.market_id}
+                        title={signal.title}
+                        tag={formatCategoryTag(market?.category)}
+                        marketProbability={signal.analysis.market_price}
+                        aiProbability={signal.analysis.ai_probability}
+                        edge={signal.analysis.edge}
+                        conviction={convictionFromSignal(signal.signal_score, signal.confidence)}
+                        rationale={signal.rationale}
+                        catalystLabel={market?.category ?? "Polymarket"}
+                        hoursToCatalyst={formatHoursUntil(market?.endDate)}
+                        hot={Math.abs(signal.analysis.edge) >= 0.18 || signal.confidence === "HIGH"}
+                        href={`/signals/${signal.market_id}`}
+                        index={index}
+                      />
+                    );
+                  })}
+
+              <div className="flex items-center justify-center gap-2 rounded-[12px] border border-[#7EB8FF]/10 bg-[#7EB8FF]/[0.02] px-4 py-5 text-[12px] font-medium text-white/30">
+                <LockIcon className="h-4 w-4 text-white/25" />
+                {Math.max(signals.length - 2, 4)} more signals · Connect wallet to unlock
               </div>
-            </FadeIn>
+            </div>
           </div>
         </section>
 
-        <section id="product" className="grid gap-5 py-20 md:grid-cols-3">
-          {signalSections.map((section, index) => (
-            <FadeIn key={section.title} delay={index * 0.08} className="luna-surface premium-card rounded-[30px] p-8">
-              <div className="mb-8 inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/16 bg-cyan-300/10 text-cyan-200">
-                <SparkIcon className="h-5 w-5" />
-              </div>
-              <h3 className="luna-heading text-2xl text-white">{section.title}</h3>
-              <p className="mt-4 text-sm leading-7 text-slate-400">{section.copy}</p>
-            </FadeIn>
-          ))}
-        </section>
+        <hr className="luna-divider" />
 
-        <section id="access" className="grid gap-8 border-t border-white/6 py-16 lg:grid-cols-[0.86fr_1.14fr]">
-          <FadeIn>
-            <p className="text-sm uppercase tracking-[0.3em] text-cyan-200/80">Private access</p>
-            <h2 className="luna-heading mt-4 max-w-xl text-4xl text-white md:text-5xl">
-              Same LunaScope signal core, wrapped in a calmer and cleaner operator shell.
-            </h2>
-          </FadeIn>
+        <section id="how" className="luna-section">
+          <div className="luna-section-label">HOW IT WORKS</div>
+          <h2 className="luna-section-title mb-12">
+            Three layers.
+            <br />
+            One terminal.
+          </h2>
 
-          <FadeIn delay={0.12} className="grid gap-4 md:grid-cols-2">
-            {[
-              ["Unified system", "Buttons, typography, spacing, and dark glass surfaces all follow one Lunascope visual language."],
-              ["Real data first", "Signal cards and dashboard surfaces are now designed to map directly to the APIs already running in production."],
-              ["On-demand detail", "Each signal can expand into a richer view with price history and analyst rationale instead of dead-end UI stubs."],
-              ["Wallet-ready shell", "The front-end redesign now sits on top of the real auth and access backend instead of a fake gate."],
-            ].map(([title, copy]) => (
-              <div key={title} className="luna-surface rounded-[28px] p-6">
-                <p className="luna-heading text-lg text-white">{title}</p>
-                <p className="mt-3 text-sm leading-7 text-slate-400">{copy}</p>
+          <div className="grid gap-px overflow-hidden rounded-[14px] bg-[#7EB8FF]/[0.06] md:grid-cols-3">
+            {featureItems.map((item) => (
+              <div key={item.num} className="premium-card bg-[#0c0c0e] px-6 py-7">
+                <div className="mb-3 text-[11px] font-bold tracking-[0.06em] text-[#7EB8FF]/70">{item.num}</div>
+                <div className="luna-heading mb-2 text-[14px]">{item.title}</div>
+                <div className="text-[13px] leading-[1.6] text-white/35">{item.desc}</div>
               </div>
             ))}
-          </FadeIn>
+          </div>
         </section>
+
+        <hr className="luna-divider" />
+
+        <section id="access" className="luna-section pb-4">
+          <div className="luna-section-label">ACCESS</div>
+          <h2 className="luna-section-title mb-8">
+            Two tiers.
+            <br />
+            One edge.
+          </h2>
+        </section>
+
+        <section className="luna-container grid gap-3 pb-24 md:grid-cols-2">
+          <div className="luna-shell premium-card p-8">
+            <div className="mb-4 text-[11px] font-bold tracking-[0.08em] text-white/30">GUEST</div>
+            <div className="luna-heading text-[36px]">Free</div>
+            <div className="mb-6 text-[13px] text-white/30">No wallet required</div>
+            <div className="mb-8 flex flex-col gap-2.5">
+              {["Top 2 signals preview", "Edge score visible", "Market name & tag"].map((item) => (
+                <div key={item} className="flex items-center gap-2.5 text-[13px] text-white/60">
+                  <span className="text-white/40">✓</span>
+                  {item}
+                </div>
+              ))}
+              {["AI rationale locked", "Conviction score locked", "Time-to-catalyst locked"].map((item) => (
+                <div key={item} className="flex items-center gap-2.5 text-[13px] text-white/20">
+                  <span className="text-white/15">✗</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+            <Link href="/dashboard" className="luna-button-secondary w-full">
+              View signals
+            </Link>
+          </div>
+
+          <div
+            className="luna-shell p-8"
+            style={{
+              borderColor: "rgba(126,184,255,0.2)",
+              background: "rgba(126,184,255,0.03)",
+              animation: "borderGlow 4s ease-in-out infinite",
+            }}
+          >
+            <div className="mb-4 text-[11px] font-bold tracking-[0.08em] text-white/30">OPERATOR</div>
+            <div
+              className="luna-heading text-[36px]"
+              style={{
+                background: "linear-gradient(135deg, #7EB8FF, #00C4FF)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Private
+            </div>
+            <div className="mb-6 text-[13px] text-white/30">
+              {session?.access?.hasAccess ? `Wallet unlocked on tier ${session.access.tier}` : "Invite-only · Wallet-gated"}
+            </div>
+            <div className="mb-8 flex flex-col gap-2.5">
+              {[
+                "All signals unlocked",
+                "Full AI rationale",
+                "Conviction score",
+                "Time-to-catalyst timer",
+                "5-min refresh cycle",
+                "Priority new signals",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-2.5 text-[13px] text-white/60">
+                  <span className="text-[#7EB8FF]">✓</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+            <button className="luna-button w-full" onClick={() => setGateOpen(true)}>
+              {session?.authenticated ? "Manage access" : "Connect wallet"}
+            </button>
+          </div>
+        </section>
+
+        <hr className="luna-divider" />
+
+        <footer className="luna-container flex flex-col gap-3 py-6 text-[12px] text-white/20 md:flex-row md:items-center md:justify-between">
+          <span>© 2026 LunaScope</span>
+          <span className="text-[#7EB8FF]/60">Not financial advice.</span>
+          <span>See what moves the market first.</span>
+        </footer>
       </div>
 
       <AnimatePresence>
@@ -349,54 +405,53 @@ export function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(2,6,14,0.74)] p-6 backdrop-blur-md"
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 px-5 py-10 backdrop-blur-md"
           >
             <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="luna-shell w-full max-w-xl rounded-[34px] p-7"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-[460px] rounded-[14px] border border-[#7EB8FF]/12 bg-[#0c0c0e] p-6 shadow-[0_0_40px_rgba(126,184,255,0.08)]"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Access terminal</p>
-                  <h3 className="luna-heading mt-3 text-3xl text-white">Connect your wallet and unlock private signals</h3>
+                  <div className="mb-2 text-[11px] font-semibold tracking-[0.07em] text-[#7EB8FF]">PRIVATE ACCESS</div>
+                  <h3 className="luna-heading text-[26px] leading-[1.05]">
+                    Connect your wallet and unlock operator flow.
+                  </h3>
                 </div>
-                <button onClick={() => setGateOpen(false)} className="luna-button-secondary px-3 py-2 text-sm">
+                <button className="luna-button-secondary px-3 py-2" onClick={() => setGateOpen(false)}>
                   Close
                 </button>
               </div>
 
-              <div className="mt-8 space-y-6">
-                <div className="luna-surface rounded-[28px] p-5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
+              <div className="space-y-3">
+                <div className="rounded-[12px] border border-white/[0.07] p-4">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#7EB8FF]/10 text-[#7EB8FF]">
                       <WalletIcon className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">
+                      <div className="text-[13px] font-medium text-white/85">
                         {session?.authenticated ? shortenAddress(session.walletAddress) : "Injected wallet sign-in"}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Supports MetaMask and Rabby in the current browser.
-                      </p>
+                      </div>
+                      <div className="text-[12px] text-white/30">MetaMask and Rabby supported in-browser.</div>
                     </div>
                   </div>
-
-                  <button onClick={handleConnect} disabled={connecting} className="luna-button mt-5 w-full justify-center px-4 py-3 text-sm disabled:opacity-70">
-                    {connecting ? "Waiting for signature..." : session?.authenticated ? "Wallet connected" : "Connect injected wallet"}
+                  <button className="luna-button w-full" disabled={connecting} onClick={handleConnect}>
+                    {connecting ? "Waiting for signature..." : session?.authenticated ? "Wallet connected" : "Connect wallet"}
                   </button>
                 </div>
 
-                <div className="luna-surface rounded-[28px] p-5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-slate-200">
+                <div className="rounded-[12px] border border-white/[0.07] p-4">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-white/[0.04] text-white/70">
                       <LockIcon className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">Redeem invite code</p>
-                      <p className="mt-1 text-xs text-slate-500">Attach private access to your wallet session.</p>
+                      <div className="text-[13px] font-medium text-white/85">Redeem invite code</div>
+                      <div className="text-[12px] text-white/30">Attach private access to your wallet session.</div>
                     </div>
                   </div>
 
@@ -404,28 +459,20 @@ export function LandingPage() {
                     value={inviteCode}
                     onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
                     placeholder="LUNA-ALPHA"
-                    className="mt-5 w-full rounded-[20px] border border-white/8 bg-slate-950/60 px-5 py-4 text-sm tracking-[0.24em] text-white outline-none transition-colors duration-300 placeholder:text-slate-600 focus:border-cyan-300/28"
+                    className="mb-3 w-full rounded-[8px] border border-[#7EB8FF]/12 bg-white/[0.02] px-4 py-3 text-[13px] text-white outline-none placeholder:text-white/20 focus:border-[#7EB8FF]/35"
                   />
-                  <button onClick={handleRedeem} disabled={!session?.authenticated || redeeming} className="luna-button mt-4 w-full justify-center px-4 py-3 text-sm disabled:opacity-60">
-                    {redeeming ? "Redeeming..." : "Redeem and continue"}
+                  <button className="luna-button-secondary w-full" disabled={!session?.authenticated || redeeming} onClick={handleRedeem}>
+                    {redeeming ? "Redeeming..." : "Redeem invite"}
                   </button>
                 </div>
 
                 {session?.access?.hasAccess ? (
-                  <div className="rounded-[24px] border border-emerald-400/18 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
-                    Access active on tier {session.access.tier}. You can enter the live dashboard now.
+                  <div className="rounded-[12px] border border-[#7EB8FF]/12 bg-[#7EB8FF]/[0.03] px-4 py-3 text-[12px] text-white/55">
+                    Access active on <span className="text-white/80">tier {session.access.tier}</span>.
                   </div>
                 ) : null}
-
-                {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-sm text-slate-500">Wallet auth backend is live. Provider UX will keep improving in the redesign.</div>
-                  <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-cyan-200 transition-colors duration-300 hover:text-cyan-100">
-                    Open dashboard
-                    <ArrowUpRightIcon className="h-4 w-4" />
-                  </Link>
-                </div>
+                {error ? <div className="text-[12px] text-rose-300">{error}</div> : null}
+                {loadingSession ? <div className="text-[12px] text-white/25">Checking session...</div> : null}
               </div>
             </motion.div>
           </motion.div>

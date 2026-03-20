@@ -31,6 +31,28 @@ export function formatClock(value: string) {
   });
 }
 
+export function formatHoursUntil(value: string | null | undefined) {
+  if (!value) return null;
+
+  const diff = new Date(value).getTime() - Date.now();
+  if (Number.isNaN(diff)) return null;
+
+  const hours = Math.max(1, Math.round(diff / 3_600_000));
+  return hours;
+}
+
+export function formatCategoryTag(value: string | null | undefined) {
+  return (value ?? "General").toUpperCase();
+}
+
+export function convictionFromSignal(score: number, confidence?: "LOW" | "MEDIUM" | "HIGH") {
+  const base = Math.max(52, Math.min(96, Math.round(score * 9)));
+
+  if (confidence === "HIGH") return Math.min(98, base + 6);
+  if (confidence === "LOW") return Math.max(48, base - 6);
+  return base;
+}
+
 export function shortenAddress(value: string | null | undefined) {
   if (!value) return "Guest";
   return `${value.slice(0, 6)}...${value.slice(-4)}`;

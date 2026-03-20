@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpRightIcon, ChevronRightIcon, LogoMark, SearchIcon, SparkIcon, WalletIcon } from "./icons";
-import { formatClock, formatCompactNumber, formatPercent, formatSignedPercent, shortenAddress } from "./format";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowUpRightIcon, SearchIcon, WalletIcon } from "./icons";
+import { convictionFromSignal, formatCategoryTag, formatClock, formatCompactNumber, formatHoursUntil, formatPercent, formatSignedPercent, shortenAddress } from "./format";
 import { LineChart } from "./line-chart";
-import { FadeIn } from "./motion";
+import { SignalCard } from "./signal-card";
+import { TopChrome } from "./top-chrome";
 import { useWalletAuth } from "./use-wallet-auth";
 
 type LiveSignal = {
@@ -29,11 +30,18 @@ type DetailResponse = {
     source: string;
   };
   signal: {
-    marketId: string;
     question: string;
     category: string | null;
     reasons: string[];
     generatedAt: string;
+    features: {
+      confidence: number;
+      liquidityScore: number;
+      activityScore: number;
+      momentumScore: number;
+      spreadScore: number;
+      urgencyScore: number;
+    };
     research?: {
       query: string;
       usedGroqWebSearch: boolean;
@@ -46,17 +54,6 @@ type DetailResponse = {
       }>;
     };
     publishedSignal?: LiveSignal;
-    features: {
-      marketProbability: number;
-      modelProbability: number;
-      edge: number;
-      confidence: number;
-      liquidityScore: number;
-      activityScore: number;
-      momentumScore: number;
-      spreadScore: number;
-      urgencyScore: number;
-    };
   };
   market: {
     id: string;
@@ -83,29 +80,9 @@ type DetailResponse = {
   relatedSignals: LiveSignal[];
 };
 
-function confidenceTone(value: "LOW" | "MEDIUM" | "HIGH" | undefined) {
-  if (value === "HIGH") return "text-emerald-200 border-emerald-400/18 bg-emerald-400/10";
-  if (value === "MEDIUM") return "text-amber-200 border-amber-300/18 bg-amber-300/10";
-  return "text-slate-300 border-white/8 bg-white/[0.03]";
-}
-
-function confidenceWidth(value: number | undefined) {
-  const safe = Math.max(0.12, Math.min(value ?? 0.5, 1));
-  return `${Math.round(safe * 100)}%`;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "Open-ended";
-  return new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 export function SignalDetailPage({ marketId }: { marketId: string }) {
   const [detail, setDetail] = useState<DetailResponse | null>(null);
+  const [tickerSignals, setTickerSignals] = useState<LiveSignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,7 +98,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
   useEffect(() => {
     let active = true;
 
-    async function loadDetail(silent = false) {
+    async function loadData(silent = false) {
       if (silent) {
         setRefreshing(true);
       } else {
@@ -130,19 +107,25 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
       }
 
       try {
-        const response = await fetch(`/api/signals/${marketId}`, { cache: "no-store" });
-        const json = (await response.json()) as DetailResponse & { error?: string; detail?: string };
+        const [detailResponse, liveSignalsResponse] = await Promise.all([
+          fetch(`/api/signals/${marketId}`, { cache: "no-store" }),
+          fetch("/api/signals/live?limit=8", { cache: "no-store" }),
+        ]);
 
-        if (!response.ok) {
-          throw new Error(json.detail ?? json.error ?? "Failed to load signal.");
+        const detailJson = (await detailResponse.json()) as DetailResponse & { error?: string; detail?: string };
+        const liveSignalsJson = (await liveSignalsResponse.json()) as { signals?: LiveSignal[] };
+
+        if (!detailResponse.ok) {
+          throw new Error(detailJson.detail ?? detailJson.error ?? "Failed to load signal details.");
         }
 
-        if (active) {
-          setDetail(json);
-        }
+        if (!active) return;
+
+        setDetail(detailJson);
+        setTickerSignals(liveSignalsJson.signals ?? []);
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : "Failed to load signal.");
+          setError(nextError instanceof Error ? nextError.message : "Failed to load signal details.");
         }
       } finally {
         if (active) {
@@ -152,7 +135,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
       }
     }
 
-    void loadDetail();
+    void loadData();
     return () => {
       active = false;
     };
@@ -168,9 +151,16 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
     [detail],
   );
 
+  const tickerItems = (tickerSignals.length > 0 ? tickerSignals : detail?.relatedSignals ?? []).map((signal) => ({
+    id: signal.market_id,
+    edgeLabel: formatSignedPercent(signal.analysis.edge, 0),
+    label: `${signal.title.slice(0, 45)}${signal.title.length > 45 ? "..." : ""}`,
+    positive: signal.analysis.edge >= 0,
+  }));
+
   async function handleConnect() {
-    setAuthError(null);
     try {
+      setAuthError(null);
       await connectInjectedWallet();
     } catch {
       return;
@@ -179,21 +169,24 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
 
   if (loading) {
     return (
-      <main className="cosmic-shell min-h-screen overflow-hidden">
-        <div className="luna-grid-mask absolute inset-0" />
-        <div className="mx-auto max-w-[1500px] px-4 py-5 md:px-6">
-          <div className="grid gap-4 xl:grid-cols-[1.12fr_0.88fr]">
+      <main className="cosmic-shell">
+        <TopChrome
+          links={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Signal", href: "#" },
+          ]}
+          tickerItems={[{ id: "loading", edgeLabel: "+0%", label: "Loading signal detail...", positive: true }]}
+          rightSlot={<div className="luna-button-secondary">Loading</div>}
+        />
+        <div className="luna-page">
+          <div className="luna-container grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
             <div className="space-y-4">
-              <div className="luna-shell h-24 animate-pulse rounded-[30px]" />
-              <div className="luna-shell h-[420px] animate-pulse rounded-[34px]" />
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="luna-shell h-64 animate-pulse rounded-[30px]" />
-                <div className="luna-shell h-64 animate-pulse rounded-[30px]" />
-              </div>
+              <div className="h-60 rounded-[14px] border border-white/[0.07] bg-white/[0.02] animate-pulse" />
+              <div className="h-80 rounded-[14px] border border-white/[0.07] bg-white/[0.02] animate-pulse" />
             </div>
             <div className="space-y-4">
-              <div className="luna-shell h-72 animate-pulse rounded-[34px]" />
-              <div className="luna-shell h-56 animate-pulse rounded-[34px]" />
+              <div className="h-64 rounded-[14px] border border-white/[0.07] bg-white/[0.02] animate-pulse" />
+              <div className="h-64 rounded-[14px] border border-white/[0.07] bg-white/[0.02] animate-pulse" />
             </div>
           </div>
         </div>
@@ -203,25 +196,27 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
 
   if (error || !detail || !published) {
     return (
-      <main className="cosmic-shell min-h-screen overflow-hidden">
-        <div className="luna-grid-mask absolute inset-0" />
-        <div className="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-10">
-          <div className="luna-shell w-full rounded-[34px] p-8 text-center">
-            <p className="text-sm uppercase tracking-[0.28em] text-slate-500">Signal unavailable</p>
-            <h1 className="luna-heading mt-4 text-4xl text-white">This market detail could not be loaded.</h1>
-            <p className="mx-auto mt-5 max-w-xl text-base leading-8 text-slate-400">
-              {error ?? "The signal is missing or the detail endpoint returned an incomplete record."}
-            </p>
-            <div className="mt-8 flex justify-center gap-3">
-              <Link href="/dashboard" className="luna-button px-5 py-3 text-sm">
-                Back to dashboard
-              </Link>
-              <button
-                onClick={() => window.location.reload()}
-                className="luna-button-secondary px-5 py-3 text-sm"
-              >
-                Retry
-              </button>
+      <main className="cosmic-shell">
+        <TopChrome
+          links={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Signal", href: "#" },
+          ]}
+          tickerItems={[{ id: "error", edgeLabel: "+0%", label: "Signal unavailable", positive: true }]}
+          rightSlot={<Link href="/dashboard" className="luna-button">Back to dashboard</Link>}
+        />
+        <div className="luna-page">
+          <div className="luna-container flex min-h-[70vh] items-center justify-center">
+            <div className="luna-shell max-w-[640px] p-8 text-center">
+              <div className="mb-2 text-[11px] font-semibold tracking-[0.07em] text-[#7EB8FF]">SIGNAL UNAVAILABLE</div>
+              <h1 className="luna-heading text-[34px]">This market detail could not be loaded.</h1>
+              <p className="mx-auto mt-4 max-w-[520px] text-[14px] leading-[1.7] text-white/35">
+                {error ?? "The detail endpoint returned an incomplete signal record."}
+              </p>
+              <div className="mt-6 flex justify-center gap-3">
+                <Link href="/dashboard" className="luna-button">Back to dashboard</Link>
+                <button className="luna-button-secondary" onClick={() => window.location.reload()}>Retry</button>
+              </div>
             </div>
           </div>
         </div>
@@ -230,170 +225,134 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
   }
 
   return (
-    <main className="cosmic-shell min-h-screen overflow-hidden">
-      <div className="luna-grid-mask absolute inset-0" />
-      <div className="beam absolute left-[8%] top-[120px] h-[420px] w-[120px] rotate-[26deg] rounded-full bg-cyan-300/26 blur-[120px]" />
-      <div className="beam absolute right-[10%] top-[140px] h-[520px] w-[140px] -rotate-[20deg] rounded-full bg-indigo-300/30 blur-[130px]" />
+    <main className="cosmic-shell">
+      <TopChrome
+        links={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Signal", href: "#signal" },
+          { label: "Context", href: "#context" },
+        ]}
+        tickerItems={tickerItems.length > 0 ? tickerItems : [{ id: marketId, edgeLabel: formatSignedPercent(published.analysis.edge, 0), label: published.title, positive: published.analysis.edge >= 0 }]}
+        rightSlot={(
+          <button className="luna-button" onClick={handleConnect}>
+            {loadingSession ? "Checking..." : session?.authenticated ? shortenAddress(session.walletAddress) : "Connect wallet"}
+          </button>
+        )}
+      />
 
-      <div className="mx-auto max-w-[1500px] px-4 py-4 md:px-6">
-        <header className="luna-shell mb-4 flex flex-wrap items-center justify-between gap-4 rounded-[30px] px-5 py-4">
-          <div className="flex min-w-[280px] items-center gap-3">
-            <Link href="/dashboard" className="luna-button-secondary px-4 py-2 text-sm">
-              <span className="rotate-180">
-                <ChevronRightIcon className="h-4 w-4" />
-              </span>
-              Dashboard
-            </Link>
-            <div className="flex items-center gap-3 rounded-full border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
-              <SearchIcon className="h-4 w-4 text-slate-500" />
-              Signal detail view
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-3 rounded-full border border-white/8 bg-white/[0.03] px-4 py-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
-                <LogoMark className="h-4 w-4" />
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Lunascope</p>
-                <p className="text-sm text-white">Signal terminal</p>
-              </div>
-            </Link>
-            <button onClick={handleConnect} className="luna-button px-4 py-2 text-sm">
-              {loadingSession ? "Checking..." : session?.authenticated ? shortenAddress(session.walletAddress) : "Connect wallet"}
-            </button>
-          </div>
-        </header>
-
-        <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="luna-page">
+        <section id="signal" className="luna-container grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-4">
-            <FadeIn className="luna-shell rounded-[34px] p-6 md:p-7">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="max-w-4xl">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-cyan-300/18 bg-cyan-300/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] text-cyan-100">
-                      {published.analysis.side} bias
-                    </span>
-                    <span className={`rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] ${confidenceTone(published.confidence)}`}>
-                      {published.confidence} confidence
-                    </span>
-                    <span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                      {detail.market.category ?? "General"}
-                    </span>
-                  </div>
-
-                  <h1 className="luna-heading mt-5 max-w-4xl text-4xl leading-[1.02] text-white md:text-5xl">
-                    {published.title}
-                  </h1>
-                  <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
-                    {published.rationale}
-                  </p>
-                </div>
-
-                <div className="rounded-[26px] border border-white/8 bg-white/[0.03] px-5 py-4 text-right">
-                  <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Signal score</p>
-                  <p className="data-number mt-3 text-4xl font-semibold text-white">
-                    {published.signal_score.toFixed(1)}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Generated {formatClock(detail.signal.generatedAt)}
-                  </p>
-                </div>
+            <div className="luna-shell p-6">
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="rounded-[4px] bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-white/35">
+                  {formatCategoryTag(detail.market.category)}
+                </span>
+                <span className="text-[11px] text-white/25">
+                  {formatHoursUntil(detail.market.endDate) ? <span className="data-number">{formatHoursUntil(detail.market.endDate)}h to catalyst</span> : "Catalyst active"}
+                </span>
+                <span className="text-[10px] font-semibold text-[#22d3ee]">
+                  {Math.abs(published.analysis.edge) >= 0.18 ? "● HOT" : "● LIVE"}
+                </span>
               </div>
 
-              <div className="mt-8 grid gap-3 md:grid-cols-4">
+              <h1 className="luna-heading max-w-[760px] text-[clamp(28px,3.2vw,42px)] leading-[1.06]">
+                {published.title}
+              </h1>
+              <p className="mt-4 max-w-[760px] text-[14px] leading-[1.75] text-white/38">
+                {published.rationale}
+              </p>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-4">
                 {[
-                  ["Market price", formatPercent(published.analysis.market_price)],
-                  ["AI probability", formatPercent(published.analysis.ai_probability)],
-                  ["Edge", formatSignedPercent(published.analysis.edge, 1)],
-                  ["Resolution", formatDate(detail.market.endDate)],
+                  ["Market", formatPercent(published.analysis.market_price)],
+                  ["AI", formatPercent(published.analysis.ai_probability)],
+                  ["Edge", formatSignedPercent(published.analysis.edge, 0)],
+                  ["Conviction", `${convictionFromSignal(published.signal_score, published.confidence)}`],
                 ].map(([label, value]) => (
-                  <div key={label} className="rounded-[24px] border border-white/6 bg-white/[0.03] px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p>
-                    <p className="data-number mt-3 text-lg font-medium leading-7 text-white">{value}</p>
+                  <div key={label} className="rounded-[10px] border border-white/[0.07] px-4 py-3">
+                    <div className="text-[10px] tracking-[0.06em] text-white/25">{label}</div>
+                    <div className={`data-number mt-2 text-[20px] font-semibold ${label === "Edge" ? (published.analysis.edge >= 0 ? "text-[#7EB8FF]" : "text-rose-400") : "text-white/82"}`}>
+                      {value}
+                    </div>
                   </div>
                 ))}
               </div>
-            </FadeIn>
+            </div>
 
-            <FadeIn delay={0.06} className="luna-shell rounded-[34px] p-6 md:p-7">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="luna-shell p-6">
+              <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm text-slate-400">Price action</p>
-                  <h2 className="luna-heading mt-2 text-2xl text-white">Live YES token chart from Polymarket</h2>
+                  <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">PRICE ACTION</div>
+                  <h2 className="luna-heading mt-1 text-[24px]">Live YES contract chart.</h2>
                 </div>
-                <div className="data-number rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-slate-300">
-                  {yesToken?.price !== null && yesToken?.price !== undefined
-                    ? `YES ${formatPercent(yesToken.price)}`
-                    : "Live contract"}
+                <div className="rounded-[8px] border border-white/[0.07] px-4 py-2 text-[12px] text-white/45">
+                  <span className="data-number text-white/80">
+                    {yesToken?.price != null ? `YES ${formatPercent(yesToken.price)}` : "Live"}
+                  </span>
                 </div>
               </div>
 
-              <div className="mt-6">
-                <LineChart
-                  points={detail.history}
-                  positive={published.analysis.edge >= 0}
-                  height={320}
-                />
-              </div>
+              <LineChart
+                points={detail.history}
+                positive={published.analysis.edge >= 0}
+                height={300}
+              />
 
-              <div className="mt-6 grid gap-3 md:grid-cols-3">
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 {[
                   ["YES price", yesToken?.price != null ? formatPercent(yesToken.price) : "--"],
                   ["NO price", noToken?.price != null ? formatPercent(noToken.price) : "--"],
-                  ["Last trade", detail.market.lastTradePrice != null ? formatPercent(detail.market.lastTradePrice) : "--"],
+                  ["Generated", formatClock(detail.signal.generatedAt)],
                 ].map(([label, value]) => (
-                  <div key={label} className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p>
-                    <p className="data-number mt-3 text-lg font-medium text-white">{value}</p>
+                  <div key={label} className="rounded-[10px] border border-white/[0.07] px-4 py-3">
+                    <div className="text-[10px] tracking-[0.06em] text-white/25">{label}</div>
+                    <div className="data-number mt-2 text-[18px] font-semibold text-white/82">{value}</div>
                   </div>
                 ))}
               </div>
-            </FadeIn>
+            </div>
 
-            <div className="grid gap-4 lg:grid-cols-[0.94fr_1.06fr]">
-              <FadeIn delay={0.1} className="luna-shell rounded-[34px] p-6">
-                <p className="text-sm text-slate-400">Why the model likes this trade</p>
-                <h2 className="luna-heading mt-2 text-2xl text-white">Rationale layers</h2>
-                <div className="mt-6 space-y-3">
+            <div id="context" className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+              <div className="luna-shell p-6">
+                <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">WHY IT EXISTS</div>
+                <h2 className="luna-heading mt-1 text-[24px]">Model rationale layers.</h2>
+                <div className="mt-5 space-y-2">
                   {detail.signal.reasons.length > 0 ? (
                     detail.signal.reasons.map((reason, index) => (
-                      <div key={reason} className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 text-[11px] text-cyan-100">
+                      <div key={reason} className="rounded-[12px] border border-white/[0.07] px-4 py-4">
+                        <div className="flex gap-3">
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7EB8FF]/10 text-[11px] text-[#7EB8FF]">
                             0{index + 1}
                           </div>
-                          <p className="text-sm leading-7 text-slate-300">{reason}</p>
+                          <div className="text-[13px] leading-[1.65] text-white/38">{reason}</div>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4 text-sm leading-7 text-slate-400">
-                      The analyst did not return explicit bullet reasons for this market yet.
+                    <div className="rounded-[12px] border border-white/[0.07] px-4 py-4 text-[13px] leading-[1.65] text-white/32">
+                      The analyst explanation for this market is currently compressed into the main rationale instead of separate bullet layers.
                     </div>
                   )}
                 </div>
-              </FadeIn>
+              </div>
 
-              <FadeIn delay={0.14} className="luna-shell rounded-[34px] p-6">
-                <div className="flex items-center justify-between gap-4">
+              <div className="luna-shell p-6">
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm text-slate-400">News and catalyst context</p>
-                    <h2 className="luna-heading mt-2 text-2xl text-white">Source pack</h2>
+                    <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">SOURCE PACK</div>
+                    <h2 className="luna-heading mt-1 text-[24px]">News and catalyst context.</h2>
                   </div>
-                  <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400">
-                    {detail.signal.research?.usedGroqWebSearch ? "Web search active" : "News ingest active"}
+                  <div className="rounded-[8px] border border-white/[0.07] px-3 py-1.5 text-[11px] text-white/30">
+                    {detail.signal.research?.usedGroqWebSearch ? "Web search" : "News ingest"}
                   </div>
                 </div>
 
-                <p className="mt-4 text-sm leading-7 text-slate-400">
-                  {detail.signal.research?.query
-                    ? `Research query: ${detail.signal.research.query}`
-                    : "Signal context currently blends market state with live news ingest."}
-                </p>
+                <div className="mt-4 text-[12px] leading-[1.6] text-white/28">
+                  {detail.signal.research?.query ? `Research query: ${detail.signal.research.query}` : "Catalyst context blends market state, news ingest, and analyst scoring."}
+                </div>
 
-                <div className="mt-6 space-y-3">
+                <div className="mt-5 space-y-2">
                   {detail.signal.research?.sources?.length ? (
                     detail.signal.research.sources.slice(0, 5).map((source) => (
                       <a
@@ -401,129 +360,126 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                         href={source.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="premium-card block rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4"
+                        className="premium-card block rounded-[12px] border border-white/[0.07] px-4 py-4"
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <div className="max-w-xl">
-                            <p className="text-sm font-medium leading-6 text-white">{source.title}</p>
-                            <p className="mt-2 text-xs uppercase tracking-[0.22em] text-slate-500">
+                          <div className="min-w-0">
+                            <div className="luna-heading text-[13px] leading-[1.45] text-white/82">{source.title}</div>
+                            <div className="mt-2 text-[11px] uppercase tracking-[0.06em] text-white/25">
                               {source.source} • {source.kind}
-                            </p>
+                            </div>
                           </div>
-                          <ArrowUpRightIcon className="mt-1 h-4 w-4 text-slate-500" />
+                          <ArrowUpRightIcon className="mt-0.5 h-4 w-4 shrink-0 text-white/25" />
                         </div>
-                        <p className="mt-3 text-xs text-slate-500">
-                          {source.publishedAt ? formatDate(source.publishedAt) : "Publication time unavailable"}
-                        </p>
                       </a>
                     ))
                   ) : (
-                    <div className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4 text-sm leading-7 text-slate-400">
-                      External source links were not attached to this signal refresh yet.
+                    <div className="rounded-[12px] border border-white/[0.07] px-4 py-4 text-[13px] leading-[1.65] text-white/32">
+                      External sources were not attached to this refresh cycle.
                     </div>
                   )}
                 </div>
-              </FadeIn>
+              </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <FadeIn delay={0.08} className="luna-shell rounded-[34px] p-6 xl:sticky xl:top-4">
-              <div className="rounded-[28px] border border-cyan-300/14 bg-[radial-gradient(circle_at_top,rgba(0,229,255,0.16),transparent_56%),linear-gradient(180deg,rgba(9,14,24,0.98),rgba(6,10,18,0.96))] p-5">
-                <div className="flex items-center justify-between gap-4">
+            <div className="luna-shell p-6 xl:sticky xl:top-[96px]">
+              <div className="rounded-[12px] border border-[#7EB8FF]/12 bg-[#7EB8FF]/[0.03] p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.26em] text-slate-500">AI execution card</p>
-                    <p className="luna-heading mt-3 text-3xl text-white">{published.analysis.side}</p>
+                    <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">EXECUTION CARD</div>
+                    <div className="luna-heading mt-2 text-[28px]">{published.analysis.side}</div>
                   </div>
-                  <div className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${confidenceTone(published.confidence)}`}>
-                    {published.confidence}
+                  <div className={`data-number text-[24px] font-semibold ${published.analysis.edge >= 0 ? "text-[#7EB8FF]" : "text-rose-400"}`}>
+                    {formatSignedPercent(published.analysis.edge, 0)}
                   </div>
                 </div>
 
-                <div className="mt-6 space-y-4">
+                <div className="space-y-3">
                   {[
                     ["Market", formatPercent(published.analysis.market_price)],
                     ["AI", formatPercent(published.analysis.ai_probability)],
-                    ["Edge", formatSignedPercent(published.analysis.edge, 1)],
+                    ["Signal score", published.signal_score.toFixed(1)],
                   ].map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between rounded-[18px] bg-white/[0.03] px-4 py-3 text-sm">
-                      <span className="text-slate-400">{label}</span>
-                      <span className="data-number text-white">{value}</span>
+                    <div key={label} className="flex items-center justify-between rounded-[10px] border border-white/[0.07] px-4 py-3 text-[13px]">
+                      <span className="text-white/35">{label}</span>
+                      <span className="data-number text-white/82">{value}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-6">
-                  <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.22em] text-slate-500">
+                <div className="mt-5">
+                  <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.06em] text-white/25">
                     <span>Model confidence</span>
                     <span className="data-number">{Math.round(detail.signal.features.confidence * 100)}%</span>
                   </div>
-                  <div className="h-3 overflow-hidden rounded-full bg-white/[0.05]">
+                  <div className="h-[4px] rounded-[2px] bg-white/[0.06]">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: confidenceWidth(detail.signal.features.confidence) }}
-                      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                      className="confidence-bar h-full rounded-full bg-[linear-gradient(90deg,rgba(0,229,255,0.85),rgba(99,102,241,0.82))]"
+                      animate={{ width: `${Math.max(12, Math.round(detail.signal.features.confidence * 100))}%` }}
+                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                      className="confidence-bar h-full rounded-[2px] bg-[linear-gradient(135deg,#7EB8FF,#00C4FF)]"
                     />
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  <button onClick={handleConnect} disabled={connecting} className="luna-button justify-center px-4 py-3 text-sm disabled:opacity-70">
+                <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                  <button className="luna-button" disabled={connecting} onClick={handleConnect}>
                     {connecting
-                      ? "Waiting for signature..."
+                      ? "Waiting..."
                       : session?.authenticated
                         ? shortenAddress(session.walletAddress)
                         : "Connect wallet"}
                   </button>
-                  <Link href="/dashboard" className="luna-button-secondary justify-center px-4 py-3 text-sm">
+                  <Link href="/dashboard" className="luna-button-secondary">
                     Back to desk
                   </Link>
                 </div>
 
-                <div className="mt-4 rounded-[18px] border border-white/6 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+                <div className="mt-4 flex items-center gap-3 rounded-[10px] border border-white/[0.07] px-4 py-3 text-[12px] text-white/32">
+                  <WalletIcon className="h-4 w-4 text-[#7EB8FF]" />
                   {session?.access?.hasAccess
                     ? `Access active on tier ${session.access.tier}.`
-                    : "Connect and redeem invite to unlock the full premium signal layer."}
+                    : "Connect and redeem invite to unlock operator flow."}
                 </div>
-                {authError ? <p className="mt-3 text-sm text-rose-300">{authError}</p> : null}
+                {authError ? <div className="mt-3 text-[12px] text-rose-300">{authError}</div> : null}
               </div>
 
-              <div className="mt-5 space-y-3">
+              <div className="mt-4 space-y-2">
                 {[
                   ["Liquidity", formatCompactNumber(detail.market.liquidity)],
                   ["24h volume", formatCompactNumber(detail.market.volume24hr)],
                   ["1w volume", formatCompactNumber(detail.market.volume1wk)],
                   ["Open interest", formatCompactNumber(detail.market.openInterest)],
-                  ["Spread", detail.market.spread != null ? formatSignedPercent(detail.market.spread, 2) : "--"],
+                  ["Spread", detail.market.spread != null ? formatSignedPercent(detail.market.spread, 1) : "--"],
                   ["Best bid / ask", detail.market.bestBid != null && detail.market.bestAsk != null ? `${formatPercent(detail.market.bestBid)} / ${formatPercent(detail.market.bestAsk)}` : "--"],
                 ].map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between rounded-[18px] bg-white/[0.03] px-4 py-3 text-sm">
-                    <span className="text-slate-400">{label}</span>
-                    <span className="data-number text-white">{value}</span>
+                  <div key={label} className="flex items-center justify-between rounded-[10px] border border-white/[0.07] px-4 py-3 text-[13px]">
+                    <span className="text-white/35">{label}</span>
+                    <span className="data-number text-white/82">{value}</span>
                   </div>
                 ))}
               </div>
-            </FadeIn>
 
-            <FadeIn delay={0.12} className="luna-shell rounded-[34px] p-6">
-              <div className="flex items-center justify-between gap-3">
+              <button className="luna-button-secondary mt-4 w-full" onClick={() => window.location.reload()}>
+                {refreshing ? "Refreshing..." : "Refresh detail"}
+              </button>
+            </div>
+
+            <div className="luna-shell p-6">
+              <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm text-slate-400">Feature decomposition</p>
-                  <h2 className="luna-heading mt-2 text-2xl text-white">Signal internals</h2>
+                  <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">FEATURE DECOMPOSITION</div>
+                  <h2 className="luna-heading mt-1 text-[24px]">Signal internals.</h2>
                 </div>
-                <button
-                  onClick={() => {
-                    setRefreshing(true);
-                    window.location.reload();
-                  }}
-                  className="luna-button-secondary px-4 py-2 text-sm"
-                >
-                  {refreshing ? "Refreshing..." : "Refresh"}
-                </button>
+                <div className="flex items-center gap-2 rounded-[10px] border border-white/[0.07] px-3 py-2 text-[12px] text-white/30">
+                  <SearchIcon className="h-3.5 w-3.5" />
+                  Live
+                </div>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="space-y-4">
                 {[
                   ["Liquidity", detail.signal.features.liquidityScore],
                   ["Activity", detail.signal.features.activityScore],
@@ -532,61 +488,56 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                   ["Urgency", detail.signal.features.urgencyScore],
                 ].map(([label, value]) => (
                   <div key={label}>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="text-slate-400">{label}</span>
-                      <span className="data-number text-white">{Math.round(Number(value) * 100)}%</span>
+                    <div className="mb-2 flex items-center justify-between text-[13px]">
+                      <span className="text-white/35">{label}</span>
+                      <span className="data-number text-white/82">{Math.round(Number(value) * 100)}%</span>
                     </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-white/[0.05]">
+                    <div className="h-[4px] rounded-[2px] bg-white/[0.06]">
                       <motion.div
                         initial={{ width: 0 }}
                         whileInView={{ width: `${Math.max(10, Math.round(Number(value) * 100))}%` }}
                         viewport={{ once: true }}
-                        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                        className="h-full rounded-full bg-[linear-gradient(90deg,rgba(99,102,241,0.82),rgba(0,229,255,0.82))]"
+                        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                        className="h-full rounded-[2px] bg-[linear-gradient(135deg,#7EB8FF,#00C4FF)]"
                       />
                     </div>
                   </div>
                 ))}
               </div>
-            </FadeIn>
+            </div>
 
-            <FadeIn delay={0.16} className="luna-shell rounded-[34px] p-6">
-              <div className="flex items-center gap-3">
-                <SparkIcon className="h-5 w-5 text-cyan-200" />
-                <div>
-                  <p className="text-sm text-slate-400">Related signal flow</p>
-                  <h2 className="luna-heading mt-1 text-2xl text-white">What else is moving</h2>
-                </div>
+            <div className="luna-shell p-6">
+              <div className="mb-5">
+                <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">RELATED FLOW</div>
+                <h2 className="luna-heading mt-1 text-[24px]">What else is moving.</h2>
               </div>
 
-              <div className="mt-6 space-y-3">
+              <div className="space-y-2">
                 {detail.relatedSignals.length > 0 ? (
-                  detail.relatedSignals.map((signal) => (
-                    <Link
+                  detail.relatedSignals.map((signal, index) => (
+                    <SignalCard
                       key={signal.market_id}
+                      title={signal.title}
+                      tag="RELATED"
+                      marketProbability={signal.analysis.market_price}
+                      aiProbability={signal.analysis.ai_probability}
+                      edge={signal.analysis.edge}
+                      conviction={convictionFromSignal(signal.signal_score, signal.confidence)}
+                      rationale={signal.rationale}
+                      hot={Math.abs(signal.analysis.edge) >= 0.18 || signal.confidence === "HIGH"}
                       href={`/signals/${signal.market_id}`}
-                      className="premium-card block rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="max-w-[18rem]">
-                          <p className="luna-heading line-clamp-2 text-sm leading-6 text-white">{signal.title}</p>
-                          <p className="mt-2 text-xs text-slate-500">
-                            {signal.analysis.side} • {signal.confidence}
-                          </p>
-                        </div>
-                        <span className="data-number text-sm text-cyan-200">{signal.signal_score.toFixed(1)}</span>
-                      </div>
-                    </Link>
+                      index={index}
+                    />
                   ))
                 ) : (
-                  <div className="rounded-[22px] border border-white/6 bg-white/[0.03] px-4 py-4 text-sm text-slate-400">
+                  <div className="rounded-[12px] border border-white/[0.07] px-4 py-4 text-[13px] leading-[1.65] text-white/32">
                     No related signals were returned in this refresh cycle.
                   </div>
                 )}
               </div>
-            </FadeIn>
+            </div>
           </div>
-        </div>
+        </section>
       </div>
     </main>
   );

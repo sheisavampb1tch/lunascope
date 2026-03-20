@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -7,13 +7,6 @@ const inter = Inter({
   display: "swap",
   variable: "--font-inter",
   weight: ["400", "600"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-data",
-  weight: ["500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -63,7 +56,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-[family-name:var(--font-inter)] antialiased`}>
+      <body className={`${inter.variable} font-[family-name:var(--font-inter)] antialiased`}>
         {children}
       </body>
     </html>

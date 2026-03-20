@@ -52,19 +52,19 @@ export function LineChart({
   const linePath = buildPath(safePoints, width, height, padding);
   const areaPath = buildAreaPath(linePath, safePoints, width, height, padding);
   const last = safePoints[safePoints.length - 1];
-  const stroke = positive ? "#00E5FF" : "#FF6D7A";
-  const glow = positive ? "rgba(0, 229, 255, 0.35)" : "rgba(255, 109, 122, 0.28)";
+  const stroke = positive ? "#7EB8FF" : "#f87171";
+  const glow = positive ? "rgba(126, 184, 255, 0.28)" : "rgba(248, 113, 113, 0.24)";
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-white/6 bg-[linear-gradient(180deg,rgba(8,13,23,0.96),rgba(4,8,17,0.92))]">
+    <div className="relative overflow-hidden rounded-[12px] border border-white/[0.07] bg-white/[0.02]">
       <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
         <defs>
           <linearGradient id="lineAreaFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity="0.3" />
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.24" />
             <stop offset="100%" stopColor={stroke} stopOpacity="0.02" />
           </linearGradient>
           <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="7" result="blur" />
+            <feGaussianBlur stdDeviation="6" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -85,8 +85,8 @@ export function LineChart({
         ))}
 
         <path d={areaPath} fill="url(#lineAreaFill)" />
-        <path d={linePath} stroke={glow} strokeWidth="7" fill="none" opacity="0.6" filter="url(#lineGlow)" />
-        <path d={linePath} stroke={stroke} strokeWidth="2.8" fill="none" />
+        <path d={linePath} stroke={glow} strokeWidth="6" fill="none" opacity="0.5" filter="url(#lineGlow)" />
+        <path d={linePath} stroke={stroke} strokeWidth="2.4" fill="none" />
 
         <circle
           cx={width - padding}
