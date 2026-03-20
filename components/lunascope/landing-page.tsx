@@ -166,7 +166,7 @@ export function LandingPage() {
           position: fixed; top: 0; left: 0; right: 0; z-index: 100;
           height: 56px;
           display: flex; align-items: center; justify-content: space-between;
-          padding: 0 28px;
+          padding: 0 36px;
           background: rgba(12,12,14,0.85);
           backdrop-filter: blur(20px);
           border-bottom: 1px solid rgba(126,184,255,0.08);
@@ -223,11 +223,11 @@ export function LandingPage() {
 
         /* HERO */
         .hero {
-          max-width: 1120px; margin: 0 auto;
-          padding: 72px 28px 80px;
+          max-width: 1400px; margin: 0 auto;
+          padding: 84px 36px 92px;
           display: grid;
-          grid-template-columns: 1fr 420px;
-          gap: 80px;
+          grid-template-columns: minmax(0, 1.08fr) 500px;
+          gap: 96px;
           align-items: start;
         }
 
@@ -248,11 +248,11 @@ export function LandingPage() {
         }
 
         .hero-title {
-          font-size: clamp(34px, 4vw, 52px);
+          font-size: clamp(40px, 4.6vw, 64px);
           font-weight: 800;
-          letter-spacing: -2px;
+          letter-spacing: -2.6px;
           line-height: 1.04;
-          margin-bottom: 18px;
+          margin-bottom: 20px;
           animation: up 0.5s ease 0.06s both;
         }
         .hero-title em {
@@ -261,11 +261,11 @@ export function LandingPage() {
         }
 
         .hero-sub {
-          font-size: 15px;
+          font-size: 16px;
           color: rgba(255,255,255,0.4);
           line-height: 1.65;
-          margin-bottom: 32px;
-          max-width: 400px;
+          margin-bottom: 36px;
+          max-width: 500px;
           font-weight: 400;
           animation: up 0.5s ease 0.12s both;
         }
@@ -273,41 +273,41 @@ export function LandingPage() {
         .hero-actions {
           display: flex; gap: 10px;
           animation: up 0.5s ease 0.18s both;
-          margin-bottom: 48px;
+          margin-bottom: 56px;
         }
         .btn-primary {
           font-family: 'Inter', sans-serif;
-          font-size: 13px; font-weight: 600;
+          font-size: 14px; font-weight: 600;
           color: #0c0c0e; background: linear-gradient(135deg, #7EB8FF, #00C4FF);
           border: none; cursor: pointer;
-          padding: 10px 22px; border-radius: 8px;
+          padding: 12px 24px; border-radius: 9px;
           transition: all 0.2s;
           box-shadow: 0 0 20px rgba(126,184,255,0.25);
         }
         .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 28px rgba(126,184,255,0.4); }
         .btn-outline {
           font-family: 'Inter', sans-serif;
-          font-size: 13px; font-weight: 500;
+          font-size: 14px; font-weight: 500;
           color: rgba(255,255,255,0.55);
           background: transparent;
           border: 1px solid rgba(126,184,255,0.15);
-          cursor: pointer; padding: 10px 20px; border-radius: 8px;
+          cursor: pointer; padding: 12px 22px; border-radius: 9px;
           transition: all 0.2s;
         }
         .btn-outline:hover { border-color: rgba(126,184,255,0.35); color: #7EB8FF; background: rgba(126,184,255,0.05); }
 
         .hero-stats {
-          display: flex; gap: 36px;
-          padding-top: 32px;
+          display: flex; gap: 48px;
+          padding-top: 36px;
           border-top: 1px solid rgba(126,184,255,0.08);
           animation: up 0.5s ease 0.24s both;
         }
         .stat-val {
-          font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+          font-size: 26px; font-weight: 700; letter-spacing: -0.7px;
           font-variant-numeric: tabular-nums;
           color: #7EB8FF;
         }
-        .stat-label { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 3px; }
+        .stat-label { font-size: 13px; color: rgba(255,255,255,0.3); margin-top: 4px; }
 
         /* FEED */
         .feed { animation: up 0.5s ease 0.1s both; }
@@ -328,17 +328,17 @@ export function LandingPage() {
 
         /* DIVIDER */
         .divider {
-          max-width: 1120px; margin: 0 auto;
+          max-width: 1400px; margin: 0 auto;
           border: none; border-top: 1px solid rgba(126,184,255,0.07);
         }
 
         /* HOW IT WORKS */
         .section {
-          max-width: 1120px; margin: 0 auto;
-          padding: 80px 28px;
+          max-width: 1400px; margin: 0 auto;
+          padding: 92px 36px;
         }
         .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; color: #7EB8FF; margin-bottom: 12px; }
-        .section-title { font-size: clamp(24px, 2.5vw, 34px); font-weight: 800; letter-spacing: -1px; margin-bottom: 48px; line-height: 1.1; }
+        .section-title { font-size: clamp(28px, 3vw, 40px); font-weight: 800; letter-spacing: -1.3px; margin-bottom: 56px; line-height: 1.08; }
 
         .features {
           display: grid; grid-template-columns: repeat(3, 1fr);
@@ -358,13 +358,13 @@ export function LandingPage() {
 
         /* ACCESS */
         .access {
-          max-width: 1120px; margin: 0 auto;
-          padding: 0 28px 100px;
-          display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+          max-width: 1400px; margin: 0 auto;
+          padding: 0 36px 112px;
+          display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
         }
         .access-card {
           border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 14px; padding: 32px;
+          border-radius: 14px; padding: 36px;
           transition: all 0.2s;
         }
         .access-card:hover { border-color: rgba(126,184,255,0.2); }
@@ -389,18 +389,37 @@ export function LandingPage() {
         /* FOOTER */
         .footer {
           border-top: 1px solid rgba(126,184,255,0.07);
-          max-width: 1120px; margin: 0 auto;
-          padding: 24px 28px;
+          max-width: 1400px; margin: 0 auto;
+          padding: 24px 36px;
           display: flex; align-items: center; justify-content: space-between;
           font-size: 12px; color: rgba(255,255,255,0.2);
         }
         .footer span:last-child { color: #7EB8FF; opacity: 0.6; }
+
+        @media (max-width: 1280px) {
+          .hero {
+            max-width: 1240px;
+            grid-template-columns: minmax(0, 1fr) 440px;
+            gap: 64px;
+          }
+          .section,
+          .access,
+          .footer,
+          .divider {
+            max-width: 1240px;
+          }
+        }
 
         @media (max-width: 768px) {
           .hero { grid-template-columns: 1fr; gap: 48px; }
           .features { grid-template-columns: 1fr; }
           .access { grid-template-columns: 1fr; }
           .nav-links { display: none; }
+          .nav { padding: 0 20px; }
+          .hero { padding: 72px 20px 80px; }
+          .section { padding: 80px 20px; }
+          .access { padding: 0 20px 100px; }
+          .footer { padding: 24px 20px; }
         }
       `}</style>
 
@@ -514,7 +533,7 @@ export function LandingPage() {
         <hr className="divider" />
 
         {/* ACCESS */}
-        <section style={{ maxWidth: 1120, margin: '0 auto', padding: '80px 28px 16px' }} id="access">
+        <section style={{ maxWidth: 1400, margin: '0 auto', padding: '92px 36px 16px' }} id="access">
           <div className="section-label">ACCESS</div>
           <h2 className="section-title" style={{ marginBottom: 32 }}>Two tiers.<br />One edge.</h2>
         </section>
