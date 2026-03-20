@@ -1,483 +1,566 @@
-"use client";
+'use client'
+import React, { useEffect, useState } from 'react'
 
-import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
-import { LockIcon, WalletIcon } from "./icons";
-import { convictionFromSignal, formatCategoryTag, formatHoursUntil, formatSignedPercent, shortenAddress } from "./format";
-import { SignalCard } from "./signal-card";
-import { TopChrome } from "./top-chrome";
-import { useWalletAuth } from "./use-wallet-auth";
+const SIGNALS = [
+  {
+    market: 'Will Fed cut rates in May 2026?',
+    marketProb: 34,
+    aiProb: 61,
+    edge: '+27%',
+    edgeVal: 27,
+    conviction: 88,
+    rationale: 'Core PCE dropped to 2.1% — Fed pivot threshold crossed. Market underpricing cut probability.',
+    catalyst: 'FOMC Meeting',
+    hours: 18,
+    tag: 'MACRO',
+    hot: true,
+  },
+  {
+    market: 'Will BTC hit $100K before April?',
+    marketProb: 22,
+    aiProb: 41,
+    edge: '+19%',
+    edgeVal: 19,
+    conviction: 74,
+    rationale: 'Spot ETF inflows hit 3-month high. Institutional accumulation pattern matches pre-rally structure.',
+    catalyst: 'ETF Flow Report',
+    hours: 43,
+    tag: 'CRYPTO',
+    hot: false,
+  },
+  {
+    market: 'Will Trump sign crypto EO this week?',
+    marketProb: 58,
+    aiProb: 79,
+    edge: '+21%',
+    edgeVal: 21,
+    conviction: 81,
+    rationale: 'WH insider briefing leaked to Bloomberg. Three senior officials confirm EO drafted and ready.',
+    catalyst: 'White House',
+    hours: 6,
+    tag: 'POLITICS',
+    hot: true,
+  },
+  {
+    market: 'Will Elon Musk leave DOGE before June?',
+    marketProb: 71,
+    aiProb: 48,
+    edge: '-23%',
+    edgeVal: -23,
+    conviction: 76,
+    rationale: 'Tesla board minutes show no transition discussion. Market overpricing departure probability.',
+    catalyst: 'Tesla Board',
+    hours: 72,
+    tag: 'POLITICS',
+    hot: false,
+  },
+]
 
-type LiveSignal = {
-  market_id: string;
-  title: string;
-  analysis: {
-    market_price: number;
-    ai_probability: number;
-    edge: number;
-    side: "YES" | "NO";
-  };
-  rationale: string;
-  signal_score: number;
-  confidence: "LOW" | "MEDIUM" | "HIGH";
-};
+function SignalCard({ s, i, locked }: { s: typeof SIGNALS[0]; i: number; locked?: boolean }) {
+  const isPos = s.edgeVal > 0
+  return (
+    <div style={{
+      border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 12,
+      padding: '16px 18px',
+      position: 'relative',
+      animation: `up 0.4s ease ${i * 0.08}s both`,
+      transition: 'border-color 0.15s',
+      filter: locked ? 'blur(3px)' : 'none',
+      userSelect: locked ? 'none' : 'auto',
+    }}
+    onMouseEnter={e => { if (!locked) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)' }}
+    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)' }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+              color: 'rgba(255,255,255,0.35)',
+              background: 'rgba(255,255,255,0.05)',
+              padding: '2px 6px', borderRadius: 4,
+            }}>{s.tag}</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+              {s.hours}h to catalyst
+            </span>
+            {s.hot && <span style={{ fontSize: 10, color: '#22d3ee', fontWeight: 600 }}>● HOT</span>}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.85)', lineHeight: 1.4 }}>{s.market}</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{
+            fontSize: 20, fontWeight: 700,
+            color: isPos ? '#7EB8FF' : '#f87171',
+            fontVariantNumeric: 'tabular-nums',
+          }}>{s.edge}</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em' }}>EDGE</div>
+        </div>
+      </div>
 
-type SnapshotMarket = {
-  id: string;
-  category: string | null;
-  endDate: string | null;
-};
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, marginBottom: 12 }}>
+        {s.rationale}
+      </div>
 
-type SnapshotResponse = {
-  meta: {
-    marketCount: number;
-  };
-  markets: SnapshotMarket[];
-};
-
-const featureItems = [
-  {
-    num: "01",
-    title: "Live Market Scan",
-    desc: "Pulls active Polymarket binary events, prioritises liquidity, and keeps the surface focused on contracts worth tracking.",
-  },
-  {
-    num: "02",
-    title: "AI Mispricing Detection",
-    desc: "Groq-backed analyst flow compares live market pricing with catalyst context and narrative drift.",
-  },
-  {
-    num: "03",
-    title: "Edge Score",
-    desc: "The spread between crowd pricing and LunaScope probability is expressed as a single clean number.",
-  },
-  {
-    num: "04",
-    title: "Time-to-Catalyst",
-    desc: "Every surfaced market carries urgency so operators know which catalysts are near enough to matter.",
-  },
-  {
-    num: "05",
-    title: "Conviction Score",
-    desc: "Signals stay ranked by conviction, so weak ideas do not pollute the feed or waste attention.",
-  },
-  {
-    num: "06",
-    title: "Wallet-Gated Access",
-    desc: "Private flow sits behind wallet auth and invite access, not email gates or noisy sign-up walls.",
-  },
-];
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ position: 'relative', height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${s.marketProb}%`, background: 'rgba(255,255,255,0.18)', borderRadius: 2 }} />
+            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${s.aiProb}%`, background: isPos ? '#7EB8FF' : '#f87171', borderRadius: 2, opacity: 0.6 }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontVariantNumeric: 'tabular-nums' }}>Market {s.marketProb}%</span>
+            <span style={{ fontSize: 10, color: isPos ? '#7EB8FF' : '#f87171', fontVariantNumeric: 'tabular-nums' }}>AI {s.aiProb}%</span>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>{s.conviction}</div>
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.06em' }}>CONV</div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function LandingPage() {
-  const [signals, setSignals] = useState<LiveSignal[]>([]);
-  const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
-  const [loadingSignals, setLoadingSignals] = useState(true);
-  const [gateOpen, setGateOpen] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
-  const {
-    session,
-    loadingSession,
-    connecting,
-    redeeming,
-    error,
-    setError,
-    connectInjectedWallet,
-    redeemInvite,
-  } = useWalletAuth();
-
+  const [tick, setTick] = useState(0)
   useEffect(() => {
-    let active = true;
-
-    async function loadData() {
-      try {
-        const [signalsResponse, snapshotResponse] = await Promise.all([
-          fetch("/api/signals/live?limit=6", { cache: "no-store" }),
-          fetch("/api/markets/snapshot?limit=40", { cache: "no-store" }),
-        ]);
-
-        const signalsJson = (await signalsResponse.json()) as { signals?: LiveSignal[] };
-        const snapshotJson = (await snapshotResponse.json()) as SnapshotResponse;
-
-        if (!active) return;
-
-        setSignals(signalsJson.signals ?? []);
-        setSnapshot(snapshotJson);
-      } finally {
-        if (active) {
-          setLoadingSignals(false);
-        }
-      }
-    }
-
-    void loadData();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const marketMap = useMemo(() => {
-    const map = new Map<string, SnapshotMarket>();
-    for (const market of snapshot?.markets ?? []) {
-      map.set(market.id, market);
-    }
-    return map;
-  }, [snapshot]);
-
-  const averageEdge = signals.length
-    ? Math.round((signals.reduce((sum, signal) => sum + Math.abs(signal.analysis.edge), 0) / signals.length) * 100)
-    : 0;
-
-  const tickerItems = signals.length > 0
-    ? signals.map((signal) => ({
-        id: signal.market_id,
-        edgeLabel: formatSignedPercent(signal.analysis.edge, 0),
-        label: `${signal.title.slice(0, 45)}${signal.title.length > 45 ? "..." : ""}`,
-        positive: signal.analysis.edge >= 0,
-      }))
-    : [
-        {
-          id: "loading",
-          label: "Loading live signal flow...",
-          edgeLabel: "+0%",
-          positive: true,
-        },
-      ];
-
-  async function handleConnect() {
-    try {
-      setError(null);
-      await connectInjectedWallet();
-    } catch {
-      return;
-    }
-  }
-
-  async function handleRedeem() {
-    try {
-      await redeemInvite(inviteCode);
-      setInviteCode("");
-      setGateOpen(false);
-    } catch {
-      return;
-    }
-  }
+    const t = setInterval(() => setTick(v => v + 1), 3000)
+    return () => clearInterval(t)
+  }, [])
 
   return (
-    <main className="cosmic-shell">
-      <TopChrome
-        links={[
-          { label: "Signals", href: "#signals" },
-          { label: "How it works", href: "#how" },
-          { label: "Access", href: "#access" },
-        ]}
-        tickerItems={tickerItems}
-        rightSlot={(
-          <button className="luna-button" onClick={() => setGateOpen(true)}>
-            {session?.authenticated ? "Manage access" : "Connect wallet"}
-          </button>
-        )}
-      />
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-      <div className="luna-page">
-        <section id="signals" className="luna-container grid gap-12 py-[72px] md:grid-cols-[1fr_420px] md:gap-20 md:py-20">
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+        body {
+          background: #0c0c0e;
+          color: #f0f0f2;
+          font-family: 'Inter', sans-serif;
+          overflow-x: hidden;
+        }
+
+        /* BG GLOW */
+        body::before {
+          content: '';
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background:
+            radial-gradient(ellipse 600px 400px at 80% 10%, rgba(126,184,255,0.06) 0%, transparent 70%),
+            radial-gradient(ellipse 400px 300px at 10% 80%, rgba(0,196,255,0.04) 0%, transparent 70%);
+        }
+
+        @keyframes up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @keyframes shimmer { 0%{opacity:0.5} 50%{opacity:1} 100%{opacity:0.5} }
+        @keyframes borderGlow {
+          0%,100% { box-shadow: 0 0 0 rgba(126,184,255,0); }
+          50% { box-shadow: 0 0 20px rgba(126,184,255,0.08); }
+        }
+
+        /* NAV */
+        .nav {
+          position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+          height: 56px;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 28px;
+          background: rgba(12,12,14,0.85);
+          backdrop-filter: blur(20px);
+          border-bottom: 1px solid rgba(126,184,255,0.08);
+        }
+        .nav-logo {
+          display: flex; align-items: center; gap: 8px;
+          font-size: 15px; font-weight: 700; letter-spacing: -0.3px;
+          text-decoration: none; color: inherit;
+        }
+        .nav-logo-icon {
+          width: 26px; height: 26px; border-radius: 6px;
+          background: linear-gradient(135deg, #7EB8FF, #00C4FF);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 13px;
+          box-shadow: 0 0 12px rgba(126,184,255,0.3);
+        }
+        .nav-links { display: flex; gap: 24px; }
+        .nav-link {
+          font-size: 13px; font-weight: 500;
+          color: rgba(255,255,255,0.4);
+          text-decoration: none; transition: color 0.15s;
+        }
+        .nav-link:hover { color: rgba(255,255,255,0.85); }
+        .nav-cta {
+          font-family: 'Inter', sans-serif;
+          font-size: 13px; font-weight: 600;
+          color: #0c0c0e;
+          background: linear-gradient(135deg, #7EB8FF, #00C4FF);
+          border: none; cursor: pointer;
+          padding: 7px 18px; border-radius: 7px;
+          transition: opacity 0.15s, box-shadow 0.2s;
+          box-shadow: 0 0 16px rgba(126,184,255,0.2);
+        }
+        .nav-cta:hover { opacity: 0.9; box-shadow: 0 0 24px rgba(126,184,255,0.35); }
+
+        /* TICKER */
+        .ticker {
+          position: fixed; top: 56px; left: 0; right: 0; z-index: 99;
+          height: 28px; overflow: hidden;
+          background: rgba(126,184,255,0.03);
+          border-bottom: 1px solid rgba(126,184,255,0.07);
+          display: flex; align-items: center;
+        }
+        .ticker-inner {
+          display: flex; gap: 40px;
+          animation: ticker 35s linear infinite;
+          width: max-content;
+          font-size: 11px; font-weight: 500;
+        }
+        .ticker-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; color: rgba(255,255,255,0.35); }
+
+        /* PAGE */
+        .page { padding-top: 84px; position: relative; z-index: 1; }
+
+        /* HERO */
+        .hero {
+          max-width: 1120px; margin: 0 auto;
+          padding: 72px 28px 80px;
+          display: grid;
+          grid-template-columns: 1fr 420px;
+          gap: 80px;
+          align-items: start;
+        }
+
+        .hero-eyebrow {
+          display: inline-flex; align-items: center; gap: 7px;
+          font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+          color: #7EB8FF;
+          background: rgba(126,184,255,0.07);
+          border: 1px solid rgba(126,184,255,0.15);
+          border-radius: 20px; padding: 5px 12px;
+          margin-bottom: 20px;
+          animation: up 0.5s ease both;
+        }
+        .live-dot {
+          width: 5px; height: 5px; border-radius: 50%;
+          background: #7EB8FF; box-shadow: 0 0 6px #7EB8FF;
+          animation: pulse 1.4s ease-in-out infinite;
+        }
+
+        .hero-title {
+          font-size: clamp(34px, 4vw, 52px);
+          font-weight: 800;
+          letter-spacing: -2px;
+          line-height: 1.04;
+          margin-bottom: 18px;
+          animation: up 0.5s ease 0.06s both;
+        }
+        .hero-title em {
+          font-style: normal;
+          color: rgba(255,255,255,0.3);
+        }
+
+        .hero-sub {
+          font-size: 15px;
+          color: rgba(255,255,255,0.4);
+          line-height: 1.65;
+          margin-bottom: 32px;
+          max-width: 400px;
+          font-weight: 400;
+          animation: up 0.5s ease 0.12s both;
+        }
+
+        .hero-actions {
+          display: flex; gap: 10px;
+          animation: up 0.5s ease 0.18s both;
+          margin-bottom: 48px;
+        }
+        .btn-primary {
+          font-family: 'Inter', sans-serif;
+          font-size: 13px; font-weight: 600;
+          color: #0c0c0e; background: linear-gradient(135deg, #7EB8FF, #00C4FF);
+          border: none; cursor: pointer;
+          padding: 10px 22px; border-radius: 8px;
+          transition: all 0.2s;
+          box-shadow: 0 0 20px rgba(126,184,255,0.25);
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 28px rgba(126,184,255,0.4); }
+        .btn-outline {
+          font-family: 'Inter', sans-serif;
+          font-size: 13px; font-weight: 500;
+          color: rgba(255,255,255,0.55);
+          background: transparent;
+          border: 1px solid rgba(126,184,255,0.15);
+          cursor: pointer; padding: 10px 20px; border-radius: 8px;
+          transition: all 0.2s;
+        }
+        .btn-outline:hover { border-color: rgba(126,184,255,0.35); color: #7EB8FF; background: rgba(126,184,255,0.05); }
+
+        .hero-stats {
+          display: flex; gap: 36px;
+          padding-top: 32px;
+          border-top: 1px solid rgba(126,184,255,0.08);
+          animation: up 0.5s ease 0.24s both;
+        }
+        .stat-val {
+          font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+          font-variant-numeric: tabular-nums;
+          color: #7EB8FF;
+        }
+        .stat-label { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 3px; }
+
+        /* FEED */
+        .feed { animation: up 0.5s ease 0.1s both; }
+        .feed-header {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 12px;
+        }
+        .feed-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; color: rgba(255,255,255,0.3); }
+        .feed-live { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #7EB8FF; font-weight: 600; }
+
+        .locked-overlay {
+          border: 1px solid rgba(126,184,255,0.1);
+          border-radius: 12px; padding: 16px 18px;
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+          font-size: 12px; color: rgba(255,255,255,0.3); font-weight: 500;
+          background: rgba(126,184,255,0.02);
+        }
+
+        /* DIVIDER */
+        .divider {
+          max-width: 1120px; margin: 0 auto;
+          border: none; border-top: 1px solid rgba(126,184,255,0.07);
+        }
+
+        /* HOW IT WORKS */
+        .section {
+          max-width: 1120px; margin: 0 auto;
+          padding: 80px 28px;
+        }
+        .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; color: #7EB8FF; margin-bottom: 12px; }
+        .section-title { font-size: clamp(24px, 2.5vw, 34px); font-weight: 800; letter-spacing: -1px; margin-bottom: 48px; line-height: 1.1; }
+
+        .features {
+          display: grid; grid-template-columns: repeat(3, 1fr);
+          gap: 1px; background: rgba(126,184,255,0.06);
+          border-radius: 14px; overflow: hidden;
+          box-shadow: 0 0 40px rgba(126,184,255,0.04);
+        }
+        .feature {
+          background: #0c0c0e;
+          padding: 28px 24px;
+          transition: background 0.2s;
+        }
+        .feature:hover { background: rgba(126,184,255,0.03); }
+        .feature-num { font-size: 11px; font-weight: 700; color: #7EB8FF; letter-spacing: 0.06em; margin-bottom: 12px; opacity: 0.6; }
+        .feature-title { font-size: 14px; font-weight: 600; margin-bottom: 7px; }
+        .feature-desc { font-size: 13px; color: rgba(255,255,255,0.35); line-height: 1.6; }
+
+        /* ACCESS */
+        .access {
+          max-width: 1120px; margin: 0 auto;
+          padding: 0 28px 100px;
+          display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+        }
+        .access-card {
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 14px; padding: 32px;
+          transition: all 0.2s;
+        }
+        .access-card:hover { border-color: rgba(126,184,255,0.2); }
+        .access-card.featured {
+          border-color: rgba(126,184,255,0.2);
+          background: rgba(126,184,255,0.03);
+          box-shadow: 0 0 40px rgba(126,184,255,0.06);
+          animation: borderGlow 4s ease-in-out infinite;
+        }
+        .access-tier { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); margin-bottom: 16px; }
+        .access-price { font-size: 36px; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 4px; }
+        .access-price.blue {
+          background: linear-gradient(135deg, #7EB8FF, #00C4FF);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .access-desc { font-size: 13px; color: rgba(255,255,255,0.3); margin-bottom: 24px; }
+        .access-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+        .access-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: rgba(255,255,255,0.6); }
+        .access-item.dim { color: rgba(255,255,255,0.2); }
+        .check { font-size: 12px; }
+
+        /* FOOTER */
+        .footer {
+          border-top: 1px solid rgba(126,184,255,0.07);
+          max-width: 1120px; margin: 0 auto;
+          padding: 24px 28px;
+          display: flex; align-items: center; justify-content: space-between;
+          font-size: 12px; color: rgba(255,255,255,0.2);
+        }
+        .footer span:last-child { color: #7EB8FF; opacity: 0.6; }
+
+        @media (max-width: 768px) {
+          .hero { grid-template-columns: 1fr; gap: 48px; }
+          .features { grid-template-columns: 1fr; }
+          .access { grid-template-columns: 1fr; }
+          .nav-links { display: none; }
+        }
+      `}</style>
+
+      {/* NAV */}
+      <nav className="nav">
+        <a href="/" className="nav-logo">
+          <div className="nav-logo-icon">🌙</div>
+          lunascope
+        </a>
+        <div className="nav-links">
+          <a href="#signals" className="nav-link">Signals</a>
+          <a href="#how" className="nav-link">How it works</a>
+          <a href="#access" className="nav-link">Access</a>
+        </div>
+        <button className="nav-cta">Connect wallet</button>
+      </nav>
+
+      {/* TICKER */}
+      <div className="ticker">
+        <div className="ticker-inner">
+          {[...Array(2)].flatMap(() => SIGNALS).map((s, i) => (
+            <div key={i} className="ticker-item">
+              <span style={{ color: s.edgeVal > 0 ? '#7EB8FF' : '#f87171', fontWeight: 700 }}>{s.edge}</span>
+              <span>{s.market.slice(0, 45)}...</span>
+              <span style={{ color: rgba255(255, 255, 255, 0.2) }}>·</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="page">
+        {/* HERO */}
+        <section className="hero" id="signals">
           <div>
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="mb-5 inline-flex items-center gap-2 rounded-[20px] border border-[#7EB8FF]/15 bg-[#7EB8FF]/[0.07] px-3 py-1.5 text-[11px] font-semibold tracking-[0.06em] text-[#7EB8FF]"
-            >
+            <div className="hero-eyebrow">
               <span className="live-dot" />
               LIVE · REFRESHED EVERY 5 MINUTES
-            </motion.div>
+            </div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.05 }}
-              className="luna-heading mb-4 text-[clamp(34px,4vw,52px)] leading-[1.04]"
-            >
-              Find the edge
-              <br />
-              <span className="text-white/30">before the</span>
-              <br />
+            <h1 className="hero-title">
+              Find the edge<br />
+              <em>before the</em><br />
               market does.
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-              className="mb-8 max-w-[430px] text-[15px] leading-[1.65] text-white/40"
-            >
-              LunaScope scans Polymarket around the clock. When the crowd misprices an event, you see the spread, the rationale, and the catalyst urgency in one cleaner terminal.
-            </motion.p>
+            <p className="hero-sub">
+              AI scans Polymarket 24/7. When the crowd misprices an event — you see it first, with data to back it.
+            </p>
 
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15 }}
-              className="mb-12 flex flex-wrap gap-3"
-            >
-              <button className="luna-button" onClick={() => setGateOpen(true)}>
-                {session?.access?.hasAccess ? "Operator access active" : "Connect wallet"}
-              </button>
-              <Link href="/dashboard" className="luna-button-secondary">
-                View live desk
-              </Link>
-            </motion.div>
+            <div className="hero-actions">
+              <button className="btn-primary">Connect wallet</button>
+              <button className="btn-outline">View signals ↓</button>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="grid gap-6 border-t border-[#7EB8FF]/10 pt-8 sm:grid-cols-3"
-            >
+            <div className="hero-stats">
               {[
-                { val: `${snapshot?.meta.marketCount ?? 0}+`, label: "Markets scanned" },
-                { val: averageEdge ? `avg ${averageEdge}%` : "avg --", label: "Edge identified" },
-                { val: "5 min", label: "Refresh cycle" },
-              ].map((item) => (
-                <div key={item.label}>
-                  <div className="data-number text-[22px] font-semibold text-[#7EB8FF]">{item.val}</div>
-                  <div className="mt-1 text-[12px] text-white/30">{item.label}</div>
+                { val: '247+', label: 'Markets scanned daily' },
+                { val: 'avg 18%', label: 'Edge identified' },
+                { val: '5 min', label: 'Refresh cycle' },
+              ].map((s, i) => (
+                <div key={i}>
+                  <div className="stat-val">{s.val}</div>
+                  <div className="stat-label">{s.label}</div>
                 </div>
               ))}
-            </motion.div>
+            </div>
           </div>
 
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-[11px] font-semibold tracking-[0.07em] text-white/30">SIGNAL FEED</span>
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#7EB8FF]">
+          {/* SIGNAL FEED */}
+          <div className="feed">
+            <div className="feed-header">
+              <span className="feed-label">SIGNAL FEED</span>
+              <span className="feed-live">
                 <span className="live-dot" />
                 LIVE
               </span>
             </div>
-
-            <div className="flex flex-col gap-2">
-              {loadingSignals
-                ? Array.from({ length: 2 }).map((_, index) => (
-                    <div key={`landing-skeleton-${index}`} className="h-[172px] rounded-[12px] border border-white/[0.07] bg-white/[0.02] animate-pulse" />
-                  ))
-                : signals.slice(0, 2).map((signal, index) => {
-                    const market = marketMap.get(signal.market_id);
-                    return (
-                      <SignalCard
-                        key={signal.market_id}
-                        title={signal.title}
-                        tag={formatCategoryTag(market?.category)}
-                        marketProbability={signal.analysis.market_price}
-                        aiProbability={signal.analysis.ai_probability}
-                        edge={signal.analysis.edge}
-                        conviction={convictionFromSignal(signal.signal_score, signal.confidence)}
-                        rationale={signal.rationale}
-                        catalystLabel={market?.category ?? "Polymarket"}
-                        hoursToCatalyst={formatHoursUntil(market?.endDate)}
-                        hot={Math.abs(signal.analysis.edge) >= 0.18 || signal.confidence === "HIGH"}
-                        href={`/signals/${signal.market_id}`}
-                        index={index}
-                      />
-                    );
-                  })}
-
-              <div className="flex items-center justify-center gap-2 rounded-[12px] border border-[#7EB8FF]/10 bg-[#7EB8FF]/[0.02] px-4 py-5 text-[12px] font-medium text-white/30">
-                <LockIcon className="h-4 w-4 text-white/25" />
-                {Math.max(signals.length - 2, 4)} more signals · Connect wallet to unlock
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {SIGNALS.slice(0, 2).map((s, i) => <SignalCard key={i} s={s} i={i} />)}
+              <div className="locked-overlay">
+                🔒 {SIGNALS.length - 2} more signals · Connect wallet to unlock
               </div>
             </div>
           </div>
         </section>
 
-        <hr className="luna-divider" />
+        <hr className="divider" />
 
-        <section id="how" className="luna-section">
-          <div className="luna-section-label">HOW IT WORKS</div>
-          <h2 className="luna-section-title mb-12">
-            Three layers.
-            <br />
-            One terminal.
-          </h2>
-
-          <div className="grid gap-px overflow-hidden rounded-[14px] bg-[#7EB8FF]/[0.06] md:grid-cols-3">
-            {featureItems.map((item) => (
-              <div key={item.num} className="premium-card bg-[#0c0c0e] px-6 py-7">
-                <div className="mb-3 text-[11px] font-bold tracking-[0.06em] text-[#7EB8FF]/70">{item.num}</div>
-                <div className="luna-heading mb-2 text-[14px]">{item.title}</div>
-                <div className="text-[13px] leading-[1.6] text-white/35">{item.desc}</div>
+        {/* HOW IT WORKS */}
+        <section className="section" id="how">
+          <div className="section-label">HOW IT WORKS</div>
+          <h2 className="section-title">Three layers.<br />One terminal.</h2>
+          <div className="features">
+            {[
+              { num: '01', title: 'Live Market Scan', desc: 'Pulls all active Polymarket events every 5 minutes. Filters by volume, liquidity, and proximity to resolution.' },
+              { num: '02', title: 'AI Mispricing Detection', desc: 'Groq LLM cross-references market probabilities against real-time news, social signals, and patterns.' },
+              { num: '03', title: 'Edge Score', desc: 'Numerical gap between market price and AI-estimated true probability. Only high-conviction signals surface.' },
+              { num: '04', title: 'Time-to-Catalyst', desc: 'Tracks how close each market is to resolution. Closer catalysts — higher urgency, faster alpha.' },
+              { num: '05', title: 'Conviction Score', desc: 'Model confidence expressed as a single number. Low conviction signals are filtered out automatically.' },
+              { num: '06', title: 'Wallet-Gated Access', desc: 'Private signals locked behind wallet connection. No email, no forms. Connect and trade.' },
+            ].map((f, i) => (
+              <div key={i} className="feature">
+                <div className="feature-num">{f.num}</div>
+                <div className="feature-title">{f.title}</div>
+                <div className="feature-desc">{f.desc}</div>
               </div>
             ))}
           </div>
         </section>
 
-        <hr className="luna-divider" />
+        <hr className="divider" />
 
-        <section id="access" className="luna-section pb-4">
-          <div className="luna-section-label">ACCESS</div>
-          <h2 className="luna-section-title mb-8">
-            Two tiers.
-            <br />
-            One edge.
-          </h2>
+        {/* ACCESS */}
+        <section style={{ maxWidth: 1120, margin: '0 auto', padding: '80px 28px 16px' }} id="access">
+          <div className="section-label">ACCESS</div>
+          <h2 className="section-title" style={{ marginBottom: 32 }}>Two tiers.<br />One edge.</h2>
         </section>
-
-        <section className="luna-container grid gap-3 pb-24 md:grid-cols-2">
-          <div className="luna-shell premium-card p-8">
-            <div className="mb-4 text-[11px] font-bold tracking-[0.08em] text-white/30">GUEST</div>
-            <div className="luna-heading text-[36px]">Free</div>
-            <div className="mb-6 text-[13px] text-white/30">No wallet required</div>
-            <div className="mb-8 flex flex-col gap-2.5">
-              {["Top 2 signals preview", "Edge score visible", "Market name & tag"].map((item) => (
-                <div key={item} className="flex items-center gap-2.5 text-[13px] text-white/60">
-                  <span className="text-white/40">✓</span>
-                  {item}
-                </div>
+        <div className="access">
+          <div className="access-card">
+            <div className="access-tier">GUEST</div>
+            <div className="access-price">Free</div>
+            <div className="access-desc">No wallet required</div>
+            <div className="access-list">
+              {['Top 2 signals preview', 'Edge score visible', 'Market name & tag'].map(f => (
+                <div key={f} className="access-item"><span className="check" style={{ color: 'rgba(255,255,255,0.4)' }}>✓</span>{f}</div>
               ))}
-              {["AI rationale locked", "Conviction score locked", "Time-to-catalyst locked"].map((item) => (
-                <div key={item} className="flex items-center gap-2.5 text-[13px] text-white/20">
-                  <span className="text-white/15">✗</span>
-                  {item}
-                </div>
+              {['AI rationale locked', 'Conviction score locked', 'Time-to-catalyst locked'].map(f => (
+                <div key={f} className="access-item dim"><span className="check" style={{ color: 'rgba(255,255,255,0.15)' }}>✗</span>{f}</div>
               ))}
             </div>
-            <Link href="/dashboard" className="luna-button-secondary w-full">
-              View signals
-            </Link>
+            <button className="btn-outline" style={{ width: '100%', padding: '10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>View signals</button>
           </div>
 
-          <div
-            className="luna-shell p-8"
-            style={{
-              borderColor: "rgba(126,184,255,0.2)",
-              background: "rgba(126,184,255,0.03)",
-              animation: "borderGlow 4s ease-in-out infinite",
-            }}
-          >
-            <div className="mb-4 text-[11px] font-bold tracking-[0.08em] text-white/30">OPERATOR</div>
-            <div
-              className="luna-heading text-[36px]"
-              style={{
-                background: "linear-gradient(135deg, #7EB8FF, #00C4FF)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              Private
-            </div>
-            <div className="mb-6 text-[13px] text-white/30">
-              {session?.access?.hasAccess ? `Wallet unlocked on tier ${session.access.tier}` : "Invite-only · Wallet-gated"}
-            </div>
-            <div className="mb-8 flex flex-col gap-2.5">
-              {[
-                "All signals unlocked",
-                "Full AI rationale",
-                "Conviction score",
-                "Time-to-catalyst timer",
-                "5-min refresh cycle",
-                "Priority new signals",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2.5 text-[13px] text-white/60">
-                  <span className="text-[#7EB8FF]">✓</span>
-                  {item}
-                </div>
+          <div className="access-card featured">
+            <div className="access-tier">OPERATOR</div>
+            <div className="access-price blue">Private</div>
+            <div className="access-desc">Invite-only · Wallet-gated</div>
+            <div className="access-list">
+              {['All signals unlocked', 'Full AI rationale', 'Conviction score', 'Time-to-catalyst timer', '5-min refresh cycle', 'Priority new signals'].map(f => (
+                <div key={f} className="access-item"><span className="check" style={{ color: '#7EB8FF' }}>✓</span>{f}</div>
               ))}
             </div>
-            <button className="luna-button w-full" onClick={() => setGateOpen(true)}>
-              {session?.authenticated ? "Manage access" : "Connect wallet"}
-            </button>
+            <button className="btn-primary" style={{ width: '100%', padding: '10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>Connect wallet</button>
           </div>
-        </section>
+        </div>
 
-        <hr className="luna-divider" />
+        <hr className="divider" />
 
-        <footer className="luna-container flex flex-col gap-3 py-6 text-[12px] text-white/20 md:flex-row md:items-center md:justify-between">
-          <span>© 2026 LunaScope</span>
-          <span className="text-[#7EB8FF]/60">Not financial advice.</span>
+        <footer className="footer">
+          <span>© 2026 Lunascope</span>
+          <span>Not financial advice.</span>
           <span>See what moves the market first.</span>
         </footer>
       </div>
-
-      <AnimatePresence>
-        {gateOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 px-5 py-10 backdrop-blur-md"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full max-w-[460px] rounded-[14px] border border-[#7EB8FF]/12 bg-[#0c0c0e] p-6 shadow-[0_0_40px_rgba(126,184,255,0.08)]"
-            >
-              <div className="mb-6 flex items-start justify-between gap-4">
-                <div>
-                  <div className="mb-2 text-[11px] font-semibold tracking-[0.07em] text-[#7EB8FF]">PRIVATE ACCESS</div>
-                  <h3 className="luna-heading text-[26px] leading-[1.05]">
-                    Connect your wallet and unlock operator flow.
-                  </h3>
-                </div>
-                <button className="luna-button-secondary px-3 py-2" onClick={() => setGateOpen(false)}>
-                  Close
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div className="rounded-[12px] border border-white/[0.07] p-4">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#7EB8FF]/10 text-[#7EB8FF]">
-                      <WalletIcon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-medium text-white/85">
-                        {session?.authenticated ? shortenAddress(session.walletAddress) : "Injected wallet sign-in"}
-                      </div>
-                      <div className="text-[12px] text-white/30">MetaMask and Rabby supported in-browser.</div>
-                    </div>
-                  </div>
-                  <button className="luna-button w-full" disabled={connecting} onClick={handleConnect}>
-                    {connecting ? "Waiting for signature..." : session?.authenticated ? "Wallet connected" : "Connect wallet"}
-                  </button>
-                </div>
-
-                <div className="rounded-[12px] border border-white/[0.07] p-4">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-white/[0.04] text-white/70">
-                      <LockIcon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-medium text-white/85">Redeem invite code</div>
-                      <div className="text-[12px] text-white/30">Attach private access to your wallet session.</div>
-                    </div>
-                  </div>
-
-                  <input
-                    value={inviteCode}
-                    onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                    placeholder="LUNA-ALPHA"
-                    className="mb-3 w-full rounded-[8px] border border-[#7EB8FF]/12 bg-white/[0.02] px-4 py-3 text-[13px] text-white outline-none placeholder:text-white/20 focus:border-[#7EB8FF]/35"
-                  />
-                  <button className="luna-button-secondary w-full" disabled={!session?.authenticated || redeeming} onClick={handleRedeem}>
-                    {redeeming ? "Redeeming..." : "Redeem invite"}
-                  </button>
-                </div>
-
-                {session?.access?.hasAccess ? (
-                  <div className="rounded-[12px] border border-[#7EB8FF]/12 bg-[#7EB8FF]/[0.03] px-4 py-3 text-[12px] text-white/55">
-                    Access active on <span className="text-white/80">tier {session.access.tier}</span>.
-                  </div>
-                ) : null}
-                {error ? <div className="text-[12px] text-rose-300">{error}</div> : null}
-                {loadingSession ? <div className="text-[12px] text-white/25">Checking session...</div> : null}
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </main>
-  );
+    </>
+  )
 }
+
+function rgba255(r: number, g: number, b: number, a: number) {
+  return `rgba(${r},${g},${b},${a})`
+}
+
+export default LandingPage

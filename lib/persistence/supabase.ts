@@ -4,7 +4,7 @@ const SIGNAL_DEDUPE_WINDOW_MINUTES = 15;
 
 function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceRoleKey) {
     return null;
@@ -14,9 +14,11 @@ function getSupabaseConfig() {
 }
 
 function getHeaders(serviceRoleKey: string, extra: HeadersInit = {}) {
+  const isNewSecretKey = serviceRoleKey.startsWith("sb_secret_") || serviceRoleKey.startsWith("sb_publishable_");
+
   return {
     apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
+    ...(isNewSecretKey ? {} : { Authorization: `Bearer ${serviceRoleKey}` }),
     "Content-Type": "application/json",
     Prefer: "return=minimal",
     ...extra,
