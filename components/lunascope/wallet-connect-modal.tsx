@@ -215,16 +215,16 @@ export function WalletConnectModal({
                   style={{
                     width: 34,
                     height: 34,
-                    borderRadius: 10,
-                    background: 'linear-gradient(135deg, rgba(126,184,255,0.95), rgba(0,196,255,0.95))',
+                    borderRadius: 12,
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(126,184,255,0.12)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#0c0c0e',
-                    boxShadow: '0 0 18px rgba(126,184,255,0.28)',
+                    boxShadow: '0 0 18px rgba(126,184,255,0.12)',
                   }}
                 >
-                  <LogoMark style={{ width: 18, height: 18 }} />
+                  <LogoMark style={{ width: 22, height: 22 }} />
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)' }}>
                   LUNASCOPE ACCESS

@@ -25,7 +25,7 @@ export function TopChrome({
       <nav className="luna-nav">
         <Link href="/" className="luna-nav-logo">
           <span className="luna-nav-mark">
-            <LogoMark className="h-3.5 w-3.5" />
+            <LogoMark className="h-6 w-6" />
           </span>
           lunascope
         </Link>

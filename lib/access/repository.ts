@@ -4,7 +4,7 @@ const FALLBACK_CODES = ["LUNA-ALPHA", "EDGE-01", "POLY-VIP"];
 
 function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceRoleKey) {
     return null;
@@ -14,9 +14,11 @@ function getSupabaseConfig() {
 }
 
 function getHeaders(serviceRoleKey: string, extra: HeadersInit = {}) {
+  const isNewSecretKey = serviceRoleKey.startsWith("sb_secret_") || serviceRoleKey.startsWith("sb_publishable_");
+
   return {
     apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
+    ...(isNewSecretKey ? {} : { Authorization: `Bearer ${serviceRoleKey}` }),
     "Content-Type": "application/json",
     Prefer: "return=representation",
     ...extra,
@@ -31,6 +33,10 @@ async function supabaseFetch(path: string, init: RequestInit) {
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(`Supabase request failed: ${response.status} ${detail}`);
+  }
+
+  if (response.status === 204) {
+    return null;
   }
 
   const text = await response.text();

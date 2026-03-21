@@ -343,11 +343,10 @@ export function LandingPage() {
           text-decoration: none; color: inherit;
         }
         .nav-logo-icon {
-          width: 26px; height: 26px; border-radius: 6px;
-          background: linear-gradient(135deg, #7EB8FF, #00C4FF);
+          width: 28px; height: 28px;
           display: flex; align-items: center; justify-content: center;
-          font-size: 13px;
-          box-shadow: 0 0 12px rgba(126,184,255,0.3);
+          filter: drop-shadow(0 0 14px rgba(126,184,255,0.16));
+          flex-shrink: 0;
         }
         .nav-links { display: flex; gap: 24px; }
         .nav-link {
@@ -593,7 +592,7 @@ export function LandingPage() {
       <nav className="nav">
         <a href="/" className="nav-logo">
           <div className="nav-logo-icon">
-            <LogoMark style={{ width: 16, height: 16 }} />
+            <LogoMark style={{ width: 24, height: 24 }} />
           </div>
           lunascope
         </a>

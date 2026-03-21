@@ -122,15 +122,13 @@ select {
 }
 
 .luna-nav-mark {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #0c0c0e;
-  box-shadow: 0 0 12px rgba(126, 184, 255, 0.3);
+  filter: drop-shadow(0 0 14px rgba(126, 184, 255, 0.16));
+  flex-shrink: 0;
 }
 
 .luna-nav-links {
