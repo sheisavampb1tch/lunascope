@@ -14,42 +14,44 @@ function baseProps(props: SVGProps<SVGSVGElement>) {
 
 export function LogoMark(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 100 100" fill="none" aria-hidden="true" {...props}>
-      <path
-        d="M34 16 56 10 41 31 42 82 23 55 34 16Z"
-        fill="#7EB8FF"
-        stroke="#0C0C0E"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M41.2 31.4 56 10 43.8 49.5 41.2 31.4Z"
-        fill="#00C4FF"
-        stroke="#0C0C0E"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M42 55.2 69.8 82 42 82V55.2Z"
-        fill="#00C4FF"
-        stroke="#0C0C0E"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M57.6 55.3H76L68.8 64.2 57.6 55.3Z"
-        fill="#7EB8FF"
-        stroke="#0C0C0E"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M68.8 64.2 76 55.3 72 71.4 68.8 64.2Z"
-        fill="#00C4FF"
-        stroke="#0C0C0E"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
+    <svg viewBox="0 0 120 120" fill="none" aria-hidden="true" {...props}>
+      <g transform="translate(14 14)">
+        <path
+          d="M34 16 56 10 41 31 42 82 23 55 34 16Z"
+          fill="#7EB8FF"
+          stroke="#0C0C0E"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M41.2 31.4 56 10 43.8 49.5 41.2 31.4Z"
+          fill="#00C4FF"
+          stroke="#0C0C0E"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M42 55.2 69.8 82 42 82V55.2Z"
+          fill="#00C4FF"
+          stroke="#0C0C0E"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M57.6 55.3H76L68.8 64.2 57.6 55.3Z"
+          fill="#7EB8FF"
+          stroke="#0C0C0E"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M68.8 64.2 76 55.3 72 71.4 68.8 64.2Z"
+          fill="#00C4FF"
+          stroke="#0C0C0E"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   );
 }
