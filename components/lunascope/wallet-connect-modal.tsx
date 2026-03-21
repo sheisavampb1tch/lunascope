@@ -33,54 +33,27 @@ type WalletConnectModalProps = {
 }
 
 function WalletGlyph({ walletId }: { walletId: WalletOption['id'] }) {
-  const baseStyle: React.CSSProperties = {
+  const imageStyle: React.CSSProperties = {
     width: 18,
     height: 18,
     display: 'block',
+    objectFit: 'contain',
   }
 
   if (walletId === 'metamask') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" style={baseStyle} aria-hidden="true">
-        <path d="M4.5 5.2 10.5 9.5 9.4 6.8 4.5 5.2Z" fill="#E2761B" />
-        <path d="m19.5 5.2-6 4.3 1.1-2.7 4.9-1.6Z" fill="#E2761B" />
-        <path d="m6 14.8 2.1 3.1 4-1.1-.1 2.2v1.1H9.5l-3.5-5.3Z" fill="#E2761B" />
-        <path d="m18 14.8-3.5 5.3H12v-1.1l-.1-2.2 4 1.1 2.1-3.1Z" fill="#E2761B" />
-        <path d="m14.7 11.3 1 2.1-3.7 1-.1-3Z" fill="#F6851B" />
-        <path d="m9.3 11.3-.1 3-3.7-1 1-2.1Z" fill="#F6851B" />
-        <path d="m9.3 11.3 2.6-.2 2.8.2-.2 3.5-2.6 1.4-2.4-1.4-.2-3.5Z" fill="#763D16" />
-      </svg>
-    )
+    return <img src="/metamask.png" alt="" aria-hidden="true" style={imageStyle} />
   }
 
   if (walletId === 'coinbase') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" style={baseStyle} aria-hidden="true">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#2563FF" />
-        <path d="M12 7.2A4.8 4.8 0 1 0 12 16.8A4.8 4.8 0 1 0 12 7.2Z" fill="white" />
-        <path d="M12 9.7a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 1 0 0-4.6Z" fill="#2563FF" />
-      </svg>
-    )
+    return <img src="/coinbase.png" alt="" aria-hidden="true" style={imageStyle} />
   }
 
   if (walletId === 'rabby') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" style={baseStyle} aria-hidden="true">
-        <rect x="2.5" y="2.5" width="19" height="19" rx="6" fill="#111827" stroke="rgba(255,255,255,0.08)" />
-        <path d="M8 7.5 5.5 12 8 16.5h2.6L8.2 12l2.4-4.5Z" fill="#7EB8FF" />
-        <path d="M16 7.5 18.5 12 16 16.5h-2.6l2.4-4.5-2.4-4.5Z" fill="#00C4FF" />
-        <path d="M10.2 7.5h3.6L11.6 12l2.2 4.5h-3.6L8 12l2.2-4.5Z" fill="#D9F3FF" fillOpacity=".92" />
-      </svg>
-    )
+    return <img src="/rabby.png" alt="" aria-hidden="true" style={imageStyle} />
   }
 
   if (walletId === 'walletconnect') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" style={baseStyle} aria-hidden="true">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#3B99FC" />
-        <path d="M7.3 9.8c2.6-2.4 6.8-2.4 9.4 0l.3.3-.9.9-.3-.3c-2.1-2-5.5-2-7.6 0l-.3.3-.9-.9.3-.3Zm-1.6 1.9c3.4-3.2 9.1-3.2 12.5 0l.2.2-.9.9-.2-.2c-2.9-2.7-7.6-2.7-10.4 0l-.2.2-.9-.9.2-.2Zm2.8 2 .7-.7c1.8-1.7 4.8-1.7 6.6 0l.7.7-1 1-.7-.7c-1.3-1.2-3.4-1.2-4.7 0l-.7.7-1-1Zm5.5 1.5a1.2 1.2 0 1 1-2.4 0a1.2 1.2 0 0 1 2.4 0Z" fill="white" />
-      </svg>
-    )
+    return <img src="/walletconnect.png" alt="" aria-hidden="true" style={imageStyle} />
   }
 
   return <WalletIcon style={{ width: 18, height: 18 }} />

@@ -16,11 +16,11 @@ export const metadata: Metadata = {
     "Premium non-custodial trading intelligence for Polymarket with mispricing detection, copy-trading signals, and real-time edge monitoring.",
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.jpeg", type: "image/jpeg" },
     ],
-    shortcut: ["/icon.svg"],
+    shortcut: ["/icon.jpeg"],
     apple: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.jpeg", type: "image/jpeg" },
     ],
   },
   openGraph: {
