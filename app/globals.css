@@ -90,9 +90,9 @@ select {
 }
 
 .luna-container {
-  max-width: 1120px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding-inline: 28px;
+  padding-inline: 32px;
 }
 
 .luna-nav {
@@ -106,7 +106,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding-inline: 28px;
+  padding-inline: 32px;
   background: rgba(12, 12, 14, 0.85);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(126, 184, 255, 0.08);
@@ -270,16 +270,16 @@ select {
 }
 
 .luna-divider {
-  max-width: 1120px;
+  max-width: 1480px;
   margin: 0 auto;
   border: none;
   border-top: 1px solid rgba(126, 184, 255, 0.07);
 }
 
 .luna-section {
-  max-width: 1120px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding: 80px 28px;
+  padding: 92px 32px;
 }
 
 .luna-section-label {

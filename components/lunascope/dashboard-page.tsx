@@ -193,7 +193,7 @@ export function DashboardPage() {
       />
 
       <div className="luna-page">
-        <section className="luna-container grid gap-4 xl:grid-cols-[260px_1fr]">
+        <section className="luna-container grid items-start gap-5 xl:grid-cols-[290px_minmax(0,1fr)] 2xl:grid-cols-[310px_minmax(0,1fr)]">
           <aside className="luna-shell h-fit p-5 xl:sticky xl:top-[96px]">
             <div className="mb-8">
               <div className="mb-2 text-[11px] font-semibold tracking-[0.07em] text-[#7EB8FF]">OPERATOR DESK</div>
@@ -243,19 +243,19 @@ export function DashboardPage() {
           </aside>
 
           <div className="space-y-4">
-            <section id="overview" className="luna-shell p-5">
+            <section id="overview" className="luna-shell p-6 xl:p-7">
               <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <div className="mb-2 text-[11px] font-semibold tracking-[0.07em] text-[#7EB8FF]">LIVE TERMINAL</div>
-                  <h2 className="luna-heading text-[30px] leading-[1.04]">
+                  <h2 className="luna-heading text-[clamp(32px,3vw,46px)] leading-[1.02]">
                     Strict signal flow for live
                     <br />
                     Polymarket mispricing.
                   </h2>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex min-w-[280px] items-center gap-2 rounded-[10px] border border-white/[0.07] px-4 py-3 text-[13px] text-white/35">
+                <div className="flex flex-wrap items-center gap-3 xl:flex-nowrap">
+                  <div className="flex min-w-[320px] flex-1 items-center gap-2 rounded-[10px] border border-white/[0.07] px-4 py-3 text-[13px] text-white/35 xl:min-w-[360px] xl:max-w-[460px]">
                     <SearchIcon className="h-4 w-4 text-white/20" />
                     <input
                       value={search}
@@ -274,7 +274,7 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.22fr)_minmax(360px,0.78fr)]">
                 <div className="rounded-[12px] border border-white/[0.07] p-5">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">FEATURED SIGNAL</div>
@@ -283,11 +283,11 @@ export function DashboardPage() {
                     </div>
                   </div>
 
-                  <div className="mb-4 max-w-[520px]">
-                    <div className="luna-heading text-[22px] leading-[1.22] text-white/92">
+                  <div className="mb-4 max-w-[760px]">
+                    <div className="luna-heading text-[clamp(26px,2.7vw,38px)] leading-[1.08] text-white/92">
                       {topSignal?.title ?? "Loading live signal flow"}
                     </div>
-                    <p className="mt-3 text-[13px] leading-[1.7] text-white/35">
+                    <p className="mt-3 max-w-[700px] text-[14px] leading-[1.75] text-white/35">
                       {topSignal?.rationale ?? "Signal rationale will appear here as soon as the live analyst feed returns."}
                     </p>
                   </div>
@@ -344,12 +344,12 @@ export function DashboardPage() {
               </div>
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-              <div id="signals" className="luna-shell p-5">
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,1.14fr)_390px] 2xl:grid-cols-[minmax(0,1.16fr)_410px]">
+              <div id="signals" className="luna-shell p-6 xl:p-7">
                 <div className="mb-5 flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">SIGNALS</div>
-                    <h2 className="luna-heading mt-1 text-[24px]">What LunaScope would trade right now.</h2>
+                    <h2 className="luna-heading mt-1 text-[clamp(28px,2.6vw,40px)] leading-[1.08]">What LunaScope would trade right now.</h2>
                   </div>
                   <div className="data-number text-[11px] text-white/30">{filteredSignals.length} visible</div>
                 </div>
@@ -423,10 +423,10 @@ export function DashboardPage() {
                   {error ? <div className="mt-3 text-[12px] text-rose-300">{error}</div> : null}
                 </div>
 
-                <div id="markets" className="luna-shell p-5">
+                <div id="markets" className="luna-shell p-5 xl:p-6">
                   <div className="mb-5">
                     <div className="text-[11px] font-semibold tracking-[0.07em] text-white/25">MARKET OVERVIEW</div>
-                    <h2 className="luna-heading mt-1 text-[24px]">Highest-liquidity binary contracts.</h2>
+                    <h2 className="luna-heading mt-1 text-[clamp(26px,2.1vw,36px)] leading-[1.1]">Highest-liquidity binary contracts.</h2>
                   </div>
 
                   <div className="space-y-2">
@@ -455,7 +455,7 @@ export function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="luna-shell p-5">
+                <div className="luna-shell p-5 xl:p-6">
                   <div className="mb-4 text-[11px] font-semibold tracking-[0.07em] text-white/25">OPERATOR TAPE</div>
                   <div className="space-y-3">
                     {(snapshot?.signals ?? []).slice(0, 4).map((item) => (
