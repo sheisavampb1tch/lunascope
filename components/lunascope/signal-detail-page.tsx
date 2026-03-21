@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRightIcon, SearchIcon, WalletIcon } from "./icons";
 import { convictionFromSignal, formatCategoryTag, formatClock, formatCompactNumber, formatHoursUntil, formatPercent, formatSignedPercent, shortenAddress } from "./format";
 import { LineChart } from "./line-chart";
+import { getPolymarketMarketUrl } from "./polymarket-links";
 import { SignalCard } from "./signal-card";
 import { TopChrome } from "./top-chrome";
 import { useWalletAuth } from "./use-wallet-auth";
@@ -57,6 +58,7 @@ type DetailResponse = {
   };
   market: {
     id: string;
+    slug: string | null;
     question: string;
     category: string | null;
     endDate: string | null;
@@ -235,7 +237,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
         tickerItems={tickerItems.length > 0 ? tickerItems : [{ id: marketId, edgeLabel: formatSignedPercent(published.analysis.edge, 0), label: published.title, positive: published.analysis.edge >= 0 }]}
         rightSlot={(
           <button className="luna-button" onClick={handleConnect}>
-            {loadingSession ? "Checking..." : session?.authenticated ? shortenAddress(session.walletAddress) : "Connect wallet"}
+            {loadingSession ? "Checking..." : session?.authenticated ? shortenAddress(session.walletAddress) : "Wallet (optional)"}
           </button>
         )}
       />
@@ -425,13 +427,14 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 </div>
 
                 <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                  <button className="luna-button" disabled={connecting} onClick={handleConnect}>
-                    {connecting
-                      ? "Waiting..."
-                      : session?.authenticated
-                        ? shortenAddress(session.walletAddress)
-                        : "Connect wallet"}
-                  </button>
+                  <a
+                    href={getPolymarketMarketUrl(detail.market.slug)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="luna-button text-center"
+                  >
+                    Trade on Polymarket →
+                  </a>
                   <Link href="/dashboard" className="luna-button-secondary">
                     Back to desk
                   </Link>
@@ -440,9 +443,16 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                 <div className="mt-4 flex items-center gap-3 rounded-[10px] border border-white/[0.07] px-4 py-3 text-[12px] text-white/32">
                   <WalletIcon className="h-4 w-4 text-[#7EB8FF]" />
                   {session?.access?.hasAccess
-                    ? `Access active on tier ${session.access.tier}.`
-                    : "Connect and redeem invite to unlock operator flow."}
+                    ? `Optional wallet layer active on tier ${session.access.tier}.`
+                    : "Wallet remains optional here. Use it later for identity and gated club features if needed."}
                 </div>
+                <button className="luna-button-secondary mt-3 w-full" disabled={connecting} onClick={handleConnect}>
+                  {connecting
+                    ? "Waiting..."
+                    : session?.authenticated
+                      ? `Wallet connected: ${shortenAddress(session.walletAddress)}`
+                      : "Connect optional wallet"}
+                </button>
                 {authError ? <div className="mt-3 text-[12px] text-rose-300">{authError}</div> : null}
               </div>
 
@@ -526,6 +536,7 @@ export function SignalDetailPage({ marketId }: { marketId: string }) {
                       rationale={signal.rationale}
                       hot={Math.abs(signal.analysis.edge) >= 0.18 || signal.confidence === "HIGH"}
                       href={`/signals/${signal.market_id}`}
+                      tradeHref={getPolymarketMarketUrl(null)}
                       index={index}
                     />
                   ))

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { BellIcon, DashboardIcon, LockIcon, MarketIcon, PulseIcon, SearchIcon, WalletIcon } from "./icons";
 import { convictionFromSignal, formatCategoryTag, formatCompactNumber, formatHoursUntil, formatPercent, formatSignedPercent, shortenAddress } from "./format";
+import { getPolymarketMarketUrl } from "./polymarket-links";
 import { SignalCard } from "./signal-card";
 import { TopChrome } from "./top-chrome";
 import { useWalletAuth } from "./use-wallet-auth";
@@ -24,6 +25,7 @@ type LiveSignal = {
 
 type SnapshotMarket = {
   id: string;
+  slug: string | null;
   question: string;
   category: string | null;
   endDate: string | null;
@@ -134,6 +136,7 @@ export function DashboardPage() {
   }, [signals, deferredSearch]);
 
   const topSignal = filteredSignals[0] ?? signals[0];
+  const topSignalMarket = topSignal ? marketMap.get(topSignal.market_id) : null;
   const averageEdge = signals.length
     ? signals.reduce((sum, signal) => sum + Math.abs(signal.analysis.edge), 0) / signals.length
     : 0;
@@ -184,7 +187,7 @@ export function DashboardPage() {
         tickerItems={tickerItems}
         rightSlot={(
           <button className="luna-button" onClick={session?.authenticated ? logout : handleConnect}>
-            {loadingSession ? "Checking..." : session?.authenticated ? shortenAddress(session.walletAddress) : "Connect wallet"}
+            {loadingSession ? "Checking..." : session?.authenticated ? shortenAddress(session.walletAddress) : "Wallet (optional)"}
           </button>
         )}
       />
@@ -229,12 +232,12 @@ export function DashboardPage() {
             </div>
 
             <div className="mt-6 rounded-[12px] border border-[#7EB8FF]/12 bg-[#7EB8FF]/[0.03] p-4">
-              <div className="mb-1 text-[13px] font-medium text-white/85">Premium access</div>
+              <div className="mb-1 text-[13px] font-medium text-white/85">Optional wallet layer</div>
               <div className="text-[12px] leading-[1.5] text-white/35">
-                Wallet-gated operator tools, priority signal flow, and full rationale unlock.
+                The core desk works without wallet friction. Connect only if you want optional web3 identity and future gated features.
               </div>
               <button className="luna-button mt-4 w-full" onClick={session?.authenticated ? logout : handleConnect}>
-                {session?.authenticated ? "Logout" : "Connect wallet"}
+                {session?.authenticated ? "Disconnect wallet" : "Wallet (optional)"}
               </button>
             </div>
           </aside>
@@ -290,8 +293,16 @@ export function DashboardPage() {
                   </div>
 
                   <div className="mb-5 flex flex-wrap gap-3">
-                    <Link href={topSignal ? `/signals/${topSignal.market_id}` : "#signals"} className="luna-button">
-                      Open signal
+                    <a
+                      href={getPolymarketMarketUrl(topSignalMarket?.slug)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="luna-button"
+                    >
+                      Trade on Polymarket →
+                    </a>
+                    <Link href={topSignal ? `/signals/${topSignal.market_id}` : "#signals"} className="luna-button-secondary">
+                      View details
                     </Link>
                     <div className="rounded-[8px] border border-white/[0.07] px-4 py-2 text-[12px] text-white/45">
                       <span className="data-number text-white/80">
@@ -364,6 +375,7 @@ export function DashboardPage() {
                             hoursToCatalyst={formatHoursUntil(market?.endDate)}
                             hot={Math.abs(signal.analysis.edge) >= 0.18 || signal.confidence === "HIGH"}
                             href={`/signals/${signal.market_id}`}
+                            tradeHref={getPolymarketMarketUrl(market?.slug)}
                             index={index}
                           />
                         );
@@ -380,7 +392,7 @@ export function DashboardPage() {
                         {session?.authenticated ? shortenAddress(session.walletAddress) : "Guest session"}
                       </div>
                       <div className="text-[12px] text-white/30">
-                        {session?.access?.hasAccess ? `Tier ${session.access.tier} active` : "Connect and redeem invite to unlock operator mode."}
+                        {session?.access?.hasAccess ? `Tier ${session.access.tier} active` : "Signals stay open. Wallet is optional for future gated perks."}
                       </div>
                     </div>
                   </div>
@@ -395,7 +407,7 @@ export function DashboardPage() {
                       />
                       <div className="flex gap-2">
                         <button className="luna-button flex-1" disabled={connecting} onClick={handleConnect}>
-                          {connecting ? "Signing..." : "Connect"}
+                          {connecting ? "Signing..." : "Wallet optional"}
                         </button>
                         <button className="luna-button-secondary flex-1" disabled={!session?.authenticated || redeeming} onClick={handleRedeem}>
                           {redeeming ? "Applying..." : "Redeem"}
@@ -404,7 +416,7 @@ export function DashboardPage() {
                     </div>
                   ) : (
                     <div className="rounded-[10px] border border-[#7EB8FF]/12 bg-[#7EB8FF]/[0.03] px-4 py-3 text-[12px] text-white/55">
-                      Premium access is live on this wallet.
+                      Optional wallet layer is active on this session.
                     </div>
                   )}
 

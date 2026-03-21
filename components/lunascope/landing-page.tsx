@@ -2,10 +2,12 @@
 import React, { useEffect, useState } from 'react'
 import type { PublishedAnalystSignal } from '@/lib/markets/types'
 import { LogoMark } from './icons'
+import { getPolymarketMarketUrl } from './polymarket-links'
 import { useWalletAuth } from './use-wallet-auth'
 import { WalletConnectModal } from './wallet-connect-modal'
 
 type FeedSignal = {
+  marketId: string
   market: string
   marketProb: number
   aiProb: number
@@ -17,6 +19,8 @@ type FeedSignal = {
   hours: number
   tag: string
   hot: boolean
+  tradeHref: string
+  detailsHref: string
 }
 
 type LiveSignalsResponse = {
@@ -28,6 +32,7 @@ type LiveSignalsResponse = {
 
 type SnapshotMarket = {
   id: string
+  slug: string | null
   category: string | null
   endDate: string | null
 }
@@ -41,6 +46,7 @@ type SnapshotResponse = {
 
 const FALLBACK_SIGNALS: FeedSignal[] = [
   {
+    marketId: 'fed-cut-may-2026',
     market: 'Will Fed cut rates in May 2026?',
     marketProb: 34,
     aiProb: 61,
@@ -52,8 +58,11 @@ const FALLBACK_SIGNALS: FeedSignal[] = [
     hours: 18,
     tag: 'MACRO',
     hot: true,
+    tradeHref: 'https://polymarket.com',
+    detailsHref: '/dashboard',
   },
   {
+    marketId: 'btc-100k-before-april',
     market: 'Will BTC hit $100K before April?',
     marketProb: 22,
     aiProb: 41,
@@ -65,8 +74,11 @@ const FALLBACK_SIGNALS: FeedSignal[] = [
     hours: 43,
     tag: 'CRYPTO',
     hot: false,
+    tradeHref: 'https://polymarket.com',
+    detailsHref: '/dashboard',
   },
   {
+    marketId: 'trump-crypto-eo-week',
     market: 'Will Trump sign crypto EO this week?',
     marketProb: 58,
     aiProb: 79,
@@ -78,8 +90,11 @@ const FALLBACK_SIGNALS: FeedSignal[] = [
     hours: 6,
     tag: 'POLITICS',
     hot: true,
+    tradeHref: 'https://polymarket.com',
+    detailsHref: '/dashboard',
   },
   {
+    marketId: 'elon-leave-doge-before-june',
     market: 'Will Elon Musk leave DOGE before June?',
     marketProb: 71,
     aiProb: 48,
@@ -91,11 +106,12 @@ const FALLBACK_SIGNALS: FeedSignal[] = [
     hours: 72,
     tag: 'POLITICS',
     hot: false,
+    tradeHref: 'https://polymarket.com',
+    detailsHref: '/dashboard',
   },
 ]
 
 const DEFAULT_MARKET_COUNT = 247
-const FEED_PREVIEW_COUNT = 2
 const AUTO_REFRESH_MS = 60_000
 
 function clamp(value: number, min: number, max: number) {
@@ -139,6 +155,7 @@ function mapLiveSignals(signals: PublishedAnalystSignal[], marketsById: Map<stri
       : Math.round(signal.analysis.edge * 100)
 
     return {
+      marketId: signal.market_id,
       market: signal.title,
       marketProb,
       aiProb,
@@ -150,6 +167,8 @@ function mapLiveSignals(signals: PublishedAnalystSignal[], marketsById: Map<stri
       hours: getHoursToCatalyst(market?.endDate),
       tag: getTag(market?.category),
       hot: Math.abs(directionalEdge) >= 15 || signal.confidence === 'HIGH',
+      tradeHref: getPolymarketMarketUrl(market?.slug),
+      detailsHref: `/signals/${signal.market_id}`,
     } satisfies FeedSignal
   })
 }
@@ -216,6 +235,51 @@ function SignalCard({ s, i, locked }: { s: FeedSignal; i: number; locked?: boole
           <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.06em' }}>CONV</div>
         </div>
       </div>
+
+      {!locked ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+          <a
+            href={s.tradeHref}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 36,
+              padding: '0 14px',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#0c0c0e',
+              textDecoration: 'none',
+              background: 'linear-gradient(135deg, #7EB8FF, #00C4FF)',
+              boxShadow: '0 0 18px rgba(126,184,255,0.2)',
+            }}
+          >
+            Trade on Polymarket →
+          </a>
+          <a
+            href={s.detailsHref}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 36,
+              padding: '0 14px',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.72)',
+              textDecoration: 'none',
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.02)',
+            }}
+          >
+            View details
+          </a>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -281,19 +345,11 @@ export function LandingPage() {
   const averageEdge = Math.round(
     signals.reduce((total, signal) => total + Math.abs(signal.edgeVal), 0) / Math.max(signals.length, 1),
   )
-  const hiddenSignalCount = Math.max(signals.length - FEED_PREVIEW_COUNT, 0)
-  const accessUnlocked = session.authenticated && session.access.hasAccess
-  const visibleSignals = accessUnlocked ? signals : signals.slice(0, FEED_PREVIEW_COUNT)
   const connectLabel = session.loadingSession
     ? 'Loading...'
     : session.authenticated
       ? displayWalletAddress
-      : 'Connect wallet'
-  const primaryHeroLabel = accessUnlocked
-    ? 'Operator access active'
-    : session.authenticated
-      ? 'Unlock access'
-      : 'Connect wallet'
+      : 'Wallet (optional)'
 
   return (
     <>
@@ -637,8 +693,8 @@ export function LandingPage() {
             </p>
 
             <div className="hero-actions">
-              <button className="btn-primary" onClick={() => setWalletModalOpen(true)}>{primaryHeroLabel}</button>
-              <button className="btn-outline" onClick={() => document.getElementById('signals')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>View signals ↓</button>
+              <button className="btn-primary" onClick={() => document.getElementById('signals')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>View signals ↓</button>
+              <button className="btn-outline" onClick={() => window.location.assign('/dashboard')}>Open dashboard</button>
             </div>
 
             <div className="hero-stats">
@@ -665,22 +721,23 @@ export function LandingPage() {
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {visibleSignals.map((s, i) => <SignalCard key={`${s.market}-${i}`} s={s} i={i} />)}
-              {accessUnlocked ? (
-                <div className="locked-overlay" style={{ justifyContent: 'space-between' }}>
-                  <span>✓ Operator session active · full feed unlocked</span>
-                  <a href="/dashboard" style={{ color: '#7EB8FF', textDecoration: 'none', fontWeight: 600 }}>Open dashboard</a>
-                </div>
-              ) : (
+              {signals.map((s, i) => <SignalCard key={`${s.marketId}-${i}`} s={s} i={i} />)}
+              <div className="locked-overlay" style={{ justifyContent: 'space-between' }}>
+                <span>No wallet required to act on a signal.</span>
                 <button
                   type="button"
-                  className="locked-overlay"
                   onClick={() => setWalletModalOpen(true)}
-                  style={{ cursor: 'pointer' }}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#7EB8FF',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
                 >
-                  🔒 {hiddenSignalCount > 0 ? `${hiddenSignalCount} more signals · ` : ''}{session.authenticated ? 'Enter invite to unlock' : 'Connect wallet to unlock'}
+                  Wallet optional
                 </button>
-              )}
+              </div>
             </div>
           </div>
         </section>
@@ -698,7 +755,7 @@ export function LandingPage() {
               { num: '03', title: 'Edge Score', desc: 'Numerical gap between market price and AI-estimated true probability. Only high-conviction signals surface.' },
               { num: '04', title: 'Time-to-Catalyst', desc: 'Tracks how close each market is to resolution. Closer catalysts — higher urgency, faster alpha.' },
               { num: '05', title: 'Conviction Score', desc: 'Model confidence expressed as a single number. Low conviction signals are filtered out automatically.' },
-              { num: '06', title: 'Wallet-Gated Access', desc: 'Private signals locked behind wallet connection. No email, no forms. Connect and trade.' },
+              { num: '06', title: 'Optional Operator Access', desc: 'The core signal flow stays open. Optional identity and private operator tiers can layer on top later without blocking action.' },
             ].map((f, i) => (
               <div key={i} className="feature">
                 <div className="feature-num">{f.num}</div>
@@ -722,10 +779,10 @@ export function LandingPage() {
             <div className="access-price">Free</div>
             <div className="access-desc">No wallet required</div>
             <div className="access-list">
-              {['Top 2 signals preview', 'Edge score visible', 'Market name & tag'].map(f => (
+              {['Live signal feed', 'Trade on Polymarket CTA', 'View details on every idea'].map(f => (
                 <div key={f} className="access-item"><span className="check" style={{ color: 'rgba(255,255,255,0.4)' }}>✓</span>{f}</div>
               ))}
-              {['AI rationale locked', 'Conviction score locked', 'Time-to-catalyst locked'].map(f => (
+              {['Priority operator tooling', 'Private research notes', 'Invite-only operator tier'].map(f => (
                 <div key={f} className="access-item dim"><span className="check" style={{ color: 'rgba(255,255,255,0.15)' }}>✗</span>{f}</div>
               ))}
             </div>
@@ -735,14 +792,14 @@ export function LandingPage() {
           <div className="access-card featured">
             <div className="access-tier">OPERATOR</div>
             <div className="access-price blue">Private</div>
-            <div className="access-desc">Invite-only · Wallet-gated</div>
+            <div className="access-desc">Invite-only · wallet optional</div>
             <div className="access-list">
-              {['All signals unlocked', 'Full AI rationale', 'Conviction score', 'Time-to-catalyst timer', '5-min refresh cycle', 'Priority new signals'].map(f => (
+              {['Private operator desk', 'Richer research context', 'Higher-priority signal flow', 'Invite-only access model', 'Wallet remains optional', 'Future premium club features'].map(f => (
                 <div key={f} className="access-item"><span className="check" style={{ color: '#7EB8FF' }}>✓</span>{f}</div>
               ))}
             </div>
             <button className="btn-primary" style={{ width: '100%', padding: '10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }} onClick={() => setWalletModalOpen(true)}>
-              {accessUnlocked ? 'Operator access active' : session.authenticated ? 'Redeem invite access' : 'Connect wallet'}
+              {session.authenticated ? 'Optional wallet connected' : 'Wallet optional'}
             </button>
           </div>
         </div>

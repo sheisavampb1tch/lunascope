@@ -17,6 +17,7 @@ type SignalCardProps = {
   hot?: boolean;
   locked?: boolean;
   href?: string;
+  tradeHref?: string;
   index?: number;
 };
 
@@ -33,6 +34,7 @@ export function SignalCard({
   hot = false,
   locked = false,
   href,
+  tradeHref,
   index = 0,
 }: SignalCardProps) {
   const positive = edge >= 0;
@@ -107,10 +109,33 @@ export function SignalCard({
           Catalyst: <span className="text-white/35">{catalystLabel}</span>
         </div>
       ) : null}
+
+      {(!locked && (tradeHref || href)) ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {tradeHref ? (
+            <a
+              href={tradeHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-[36px] items-center justify-center rounded-[8px] bg-[linear-gradient(135deg,#7EB8FF,#00C4FF)] px-3.5 text-[12px] font-semibold text-[#0c0c0e] shadow-[0_0_18px_rgba(126,184,255,0.2)] transition-opacity hover:opacity-90"
+            >
+              Trade on Polymarket →
+            </a>
+          ) : null}
+          {href ? (
+            <Link
+              href={href}
+              className="inline-flex min-h-[36px] items-center justify-center rounded-[8px] border border-white/[0.08] bg-white/[0.02] px-3.5 text-[12px] font-medium text-white/72 transition-colors hover:border-[#7EB8FF]/25 hover:text-white"
+            >
+              View details
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </motion.div>
   );
 
-  if (href && !locked) {
+  if (href && !tradeHref && !locked) {
     return <Link href={href}>{content}</Link>;
   }
 
