@@ -6,7 +6,7 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
-  weight: ["400", "600"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     title: "Lunascope | AI Edge for Polymarket",
     description:
       "Mispricing detection, copy-trading signals, and premium non-custodial intelligence for Polymarket.",
-    url: "https://lunascope.ai",
+    url: "https://lunascope.xyz",
     siteName: "Lunascope",
     images: [
       {
